@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   SectionList,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -18,23 +19,33 @@ import { Ionicons } from '@expo/vector-icons';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
-// Category definitions with colors
-const CATEGORIES = [
-  { name: 'Produce', color: '#4CAF50', icon: 'leaf-outline' },
-  { name: 'Dairy', color: '#2196F3', icon: 'water-outline' },
-  { name: 'Meat', color: '#F44336', icon: 'restaurant-outline' },
-  { name: 'Bakery', color: '#FF9800', icon: 'pizza-outline' },
-  { name: 'Beverages', color: '#9C27B0', icon: 'cafe-outline' },
-  { name: 'Snacks', color: '#E91E63', icon: 'ice-cream-outline' },
-  { name: 'Frozen', color: '#00BCD4', icon: 'snow-outline' },
-  { name: 'Pantry', color: '#795548', icon: 'cube-outline' },
-  { name: 'Household', color: '#607D8B', icon: 'home-outline' },
-  { name: 'Other', color: '#9E9E9E', icon: 'ellipsis-horizontal-outline' },
+// Available icons for categories
+const AVAILABLE_ICONS = [
+  'pricetag-outline', 'cart-outline', 'basket-outline', 'bag-outline',
+  'leaf-outline', 'water-outline', 'restaurant-outline', 'pizza-outline',
+  'cafe-outline', 'ice-cream-outline', 'snow-outline', 'cube-outline',
+  'home-outline', 'ellipsis-horizontal-outline', 'nutrition-outline',
+  'fish-outline', 'beer-outline', 'wine-outline', 'fast-food-outline',
+  'flame-outline', 'medical-outline', 'fitness-outline', 'sparkles-outline',
+  'heart-outline', 'star-outline', 'gift-outline', 'diamond-outline'
 ];
 
-const getCategoryInfo = (categoryName: string) => {
-  return CATEGORIES.find(c => c.name === categoryName) || CATEGORIES[CATEGORIES.length - 1];
-};
+// Available colors for categories
+const AVAILABLE_COLORS = [
+  '#4CAF50', '#2196F3', '#F44336', '#FF9800', '#9C27B0',
+  '#E91E63', '#00BCD4', '#795548', '#607D8B', '#9E9E9E',
+  '#FF5722', '#673AB7', '#3F51B5', '#009688', '#8BC34A',
+  '#CDDC39', '#FFC107', '#FF9800', '#795548', '#000000'
+];
+
+interface Category {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  is_default: boolean;
+  created_at: string;
+}
 
 interface GroceryItem {
   id: string;
@@ -47,6 +58,7 @@ interface GroceryItem {
 
 export default function GroceryTodo() {
   const [items, setItems] = useState<GroceryItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('1');
   const [newItemCategory, setNewItemCategory] = useState('Other');
@@ -56,7 +68,7 @@ export default function GroceryTodo() {
   const [darkMode, setDarkMode] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   
-  // Edit modal state
+  // Edit item modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingItem, setEditingItem] = useState<GroceryItem | null>(null);
   const [editName, setEditName] = useState('');
@@ -69,6 +81,20 @@ export default function GroceryTodo() {
   const [itemToDelete, setItemToDelete] = useState<GroceryItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Category management modal state
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showCategoryFormModal, setShowCategoryFormModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryName, setCategoryName] = useState('');
+  const [categoryColor, setCategoryColor] = useState('#4CAF50');
+  const [categoryIcon, setCategoryIcon] = useState('pricetag-outline');
+  const [savingCategory, setSavingCategory] = useState(false);
+  
+  // Delete category modal
+  const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState(false);
+
   // Theme colors
   const theme = useMemo(() => ({
     background: darkMode ? '#121212' : '#f8f9fa',
@@ -79,7 +105,26 @@ export default function GroceryTodo() {
     inputBg: darkMode ? '#2a2a2a' : '#f5f6fa',
   }), [darkMode]);
 
-  // Fetch all grocery items
+  // Get category info helper
+  const getCategoryInfo = useCallback((categoryName: string) => {
+    const cat = categories.find(c => c.name === categoryName);
+    return cat || { name: categoryName, color: '#9E9E9E', icon: 'ellipsis-horizontal-outline' };
+  }, [categories]);
+
+  // Fetch categories
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories`);
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  }, []);
+
+  // Fetch grocery items
   const fetchItems = useCallback(async () => {
     try {
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/groceries`);
@@ -95,8 +140,9 @@ export default function GroceryTodo() {
   }, []);
 
   useEffect(() => {
+    fetchCategories();
     fetchItems();
-  }, [fetchItems]);
+  }, [fetchCategories, fetchItems]);
 
   // Add new grocery item
   const addItem = async () => {
@@ -199,31 +245,24 @@ export default function GroceryTodo() {
   const showDeleteConfirmation = (item: GroceryItem) => {
     setItemToDelete(item);
     setShowDeleteModal(true);
-    // Close edit modal if open
     setShowEditModal(false);
   };
 
-  // Delete item - actual deletion
+  // Delete item
   const executeDelete = async () => {
     if (!itemToDelete) return;
 
     setDeleting(true);
     try {
-      console.log('Deleting item:', itemToDelete.id);
       const response = await fetch(
         `${EXPO_PUBLIC_BACKEND_URL}/api/groceries/${itemToDelete.id}`,
         { method: 'DELETE' }
       );
 
-      console.log('Delete response status:', response.status);
-      
       if (response.ok) {
         setItems((prev) => prev.filter((i) => i.id !== itemToDelete.id));
-        console.log('Item deleted successfully');
         setShowDeleteModal(false);
         setItemToDelete(null);
-      } else {
-        console.error('Delete failed');
       }
     } catch (error) {
       console.error('Error deleting item:', error);
@@ -232,19 +271,95 @@ export default function GroceryTodo() {
     }
   };
 
-  // Cancel delete
-  const cancelDelete = () => {
-    setShowDeleteModal(false);
-    setItemToDelete(null);
+  // ==================== CATEGORY MANAGEMENT ====================
+
+  // Open category form (create or edit)
+  const openCategoryForm = (category?: Category) => {
+    if (category) {
+      setEditingCategory(category);
+      setCategoryName(category.name);
+      setCategoryColor(category.color);
+      setCategoryIcon(category.icon);
+    } else {
+      setEditingCategory(null);
+      setCategoryName('');
+      setCategoryColor('#4CAF50');
+      setCategoryIcon('pricetag-outline');
+    }
+    setShowCategoryFormModal(true);
   };
 
-  // Filter items based on search query and group by category
+  // Save category (create or update)
+  const saveCategory = async () => {
+    if (!categoryName.trim()) return;
+
+    setSavingCategory(true);
+    try {
+      const url = editingCategory
+        ? `${EXPO_PUBLIC_BACKEND_URL}/api/categories/${editingCategory.id}`
+        : `${EXPO_PUBLIC_BACKEND_URL}/api/categories`;
+      
+      const response = await fetch(url, {
+        method: editingCategory ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: categoryName.trim(),
+          color: categoryColor,
+          icon: categoryIcon,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchCategories();
+        await fetchItems(); // Refresh items in case category name changed
+        setShowCategoryFormModal(false);
+        setEditingCategory(null);
+        setCategoryName('');
+      }
+    } catch (error) {
+      console.error('Error saving category:', error);
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  // Show delete category confirmation
+  const showDeleteCategoryConfirmation = (category: Category) => {
+    setCategoryToDelete(category);
+    setShowDeleteCategoryModal(true);
+  };
+
+  // Delete category
+  const executeDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
+    setDeletingCategory(true);
+    try {
+      const response = await fetch(
+        `${EXPO_PUBLIC_BACKEND_URL}/api/categories/${categoryToDelete.id}`,
+        { method: 'DELETE' }
+      );
+
+      if (response.ok) {
+        await fetchCategories();
+        await fetchItems(); // Refresh items as they may have been moved to "Other"
+        setShowDeleteCategoryModal(false);
+        setCategoryToDelete(null);
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+    } finally {
+      setDeletingCategory(false);
+    }
+  };
+
+  // Filter items and group by category
   const groupedItems = useMemo(() => {
     let filtered = items.filter((item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const categoryOrder = CATEGORIES.map(c => c.name);
+    const categoryOrder = categories.map(c => c.name);
     const groups: { [key: string]: GroceryItem[] } = {};
 
     filtered.forEach(item => {
@@ -264,7 +379,7 @@ export default function GroceryTodo() {
       }));
 
     return sections;
-  }, [items, searchQuery]);
+  }, [items, searchQuery, categories, getCategoryInfo]);
 
   // Count unchecked items
   const uncheckedCount = useMemo(() => {
@@ -274,7 +389,6 @@ export default function GroceryTodo() {
   const renderItem = ({ item }: { item: GroceryItem }) => {
     return (
       <View style={[styles.itemContainer, { backgroundColor: theme.surface }]}>
-        {/* Checkbox */}
         <TouchableOpacity
           style={[styles.checkbox, item.checked && { backgroundColor: '#4CAF50', borderColor: '#4CAF50' }]}
           onPress={() => toggleItem(item)}
@@ -284,7 +398,6 @@ export default function GroceryTodo() {
           )}
         </TouchableOpacity>
         
-        {/* Item content - tap to edit */}
         <TouchableOpacity 
           style={styles.itemContent}
           onPress={() => openEditModal(item)}
@@ -305,7 +418,6 @@ export default function GroceryTodo() {
           </Text>
         </TouchableOpacity>
         
-        {/* Delete button */}
         <TouchableOpacity
           style={styles.deleteButton}
           onPress={() => showDeleteConfirmation(item)}
@@ -317,7 +429,7 @@ export default function GroceryTodo() {
     );
   };
 
-  const renderSectionHeader = ({ section }: { section: { title: string; categoryInfo: { color: string; icon: string } } }) => (
+  const renderSectionHeader = ({ section }: { section: { title: string; categoryInfo: any } }) => (
     <View style={[styles.sectionHeader, { backgroundColor: theme.background }]}>
       <View style={[styles.sectionIcon, { backgroundColor: section.categoryInfo.color + '20' }]}>
         <Ionicons name={section.categoryInfo.icon as any} size={18} color={section.categoryInfo.color} />
@@ -329,6 +441,37 @@ export default function GroceryTodo() {
         <Text style={[styles.sectionBadgeText, { color: section.categoryInfo.color }]}>
           {groupedItems.find(s => s.title === section.title)?.data.length || 0}
         </Text>
+      </View>
+    </View>
+  );
+
+  // Render category item in management list
+  const renderCategoryItem = ({ item }: { item: Category }) => (
+    <View style={[styles.categoryItemRow, { backgroundColor: theme.surface }]}>
+      <View style={[styles.categoryIcon, { backgroundColor: item.color + '20' }]}>
+        <Ionicons name={item.icon as any} size={20} color={item.color} />
+      </View>
+      <View style={styles.categoryItemInfo}>
+        <Text style={[styles.categoryItemName, { color: theme.text }]}>{item.name}</Text>
+        {item.is_default && (
+          <Text style={[styles.categoryDefaultBadge, { color: theme.textSecondary }]}>Default</Text>
+        )}
+      </View>
+      <View style={styles.categoryItemActions}>
+        <TouchableOpacity
+          style={styles.categoryActionBtn}
+          onPress={() => openCategoryForm(item)}
+        >
+          <Ionicons name="pencil-outline" size={20} color={theme.text} />
+        </TouchableOpacity>
+        {item.name !== 'Other' && (
+          <TouchableOpacity
+            style={styles.categoryActionBtn}
+            onPress={() => showDeleteCategoryConfirmation(item)}
+          >
+            <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -358,6 +501,12 @@ export default function GroceryTodo() {
             </Text>
           </View>
           <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.iconButton, { backgroundColor: theme.surface }]}
+              onPress={() => setShowCategoryModal(true)}
+            >
+              <Ionicons name="pricetags-outline" size={22} color={theme.text} />
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.iconButton, { backgroundColor: theme.surface }]}
               onPress={() => setDarkMode(!darkMode)}
@@ -392,11 +541,11 @@ export default function GroceryTodo() {
         <View style={styles.infoBar}>
           <Ionicons name="information-circle-outline" size={16} color={theme.textSecondary} />
           <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-            Items grouped by category • Tap item to edit
+            Tap item to edit • Tap tags icon to manage categories
           </Text>
         </View>
 
-        {/* Items List - Grouped by Category */}
+        {/* Items List */}
         <SectionList
           sections={groupedItems}
           renderItem={renderItem}
@@ -409,14 +558,10 @@ export default function GroceryTodo() {
             <View style={styles.emptyContainer}>
               <Ionicons name="cart-outline" size={64} color={theme.textSecondary} />
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                {searchQuery
-                  ? 'No items found'
-                  : 'Your grocery list is empty'}
+                {searchQuery ? 'No items found' : 'Your grocery list is empty'}
               </Text>
               <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
-                {searchQuery
-                  ? 'Try a different search term'
-                  : 'Tap + to add items'}
+                {searchQuery ? 'Try a different search term' : 'Tap + to add items'}
               </Text>
             </View>
           }
@@ -424,20 +569,14 @@ export default function GroceryTodo() {
         />
 
         {/* Floating Add Button */}
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setShowAddModal(true)}
-        >
+        <TouchableOpacity style={styles.fab} onPress={() => setShowAddModal(true)}>
           <Ionicons name="add" size={32} color="#fff" />
         </TouchableOpacity>
 
-        {/* Delete Confirmation Modal - Custom modal that works on web */}
-        <Modal
-          visible={showDeleteModal}
-          animationType="fade"
-          transparent={true}
-          onRequestClose={cancelDelete}
-        >
+        {/* ==================== MODALS ==================== */}
+
+        {/* Delete Item Modal */}
+        <Modal visible={showDeleteModal} animationType="fade" transparent={true} onRequestClose={() => setShowDeleteModal(false)}>
           <View style={styles.deleteModalOverlay}>
             <View style={[styles.deleteModalContent, { backgroundColor: theme.surface }]}>
               <View style={styles.deleteModalIcon}>
@@ -450,7 +589,7 @@ export default function GroceryTodo() {
               <View style={styles.deleteModalButtons}>
                 <TouchableOpacity
                   style={[styles.deleteModalButton, styles.cancelButton, { backgroundColor: theme.inputBg }]}
-                  onPress={cancelDelete}
+                  onPress={() => setShowDeleteModal(false)}
                 >
                   <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancel</Text>
                 </TouchableOpacity>
@@ -459,11 +598,7 @@ export default function GroceryTodo() {
                   onPress={executeDelete}
                   disabled={deleting}
                 >
-                  {deleting ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.confirmDeleteText}>Delete</Text>
-                  )}
+                  {deleting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.confirmDeleteText}>Delete</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -471,12 +606,7 @@ export default function GroceryTodo() {
         </Modal>
 
         {/* Add Item Modal */}
-        <Modal
-          visible={showAddModal}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setShowAddModal(false)}
-        >
+        <Modal visible={showAddModal} animationType="slide" transparent={true} onRequestClose={() => setShowAddModal(false)}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
               <View style={styles.modalHeader}>
@@ -486,7 +616,6 @@ export default function GroceryTodo() {
                 </TouchableOpacity>
               </View>
 
-              {/* Item Name */}
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Item Name</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]}
@@ -496,7 +625,6 @@ export default function GroceryTodo() {
                 onChangeText={setNewItemName}
               />
 
-              {/* Quantity */}
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Quantity</Text>
               <View style={styles.quantityContainer}>
                 <TouchableOpacity
@@ -520,12 +648,11 @@ export default function GroceryTodo() {
                 </TouchableOpacity>
               </View>
 
-              {/* Category */}
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Category</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <TouchableOpacity
-                    key={cat.name}
+                    key={cat.id}
                     style={[
                       styles.categoryOption,
                       { borderColor: cat.color },
@@ -538,44 +665,26 @@ export default function GroceryTodo() {
                       size={16}
                       color={newItemCategory === cat.name ? '#fff' : cat.color}
                     />
-                    <Text
-                      style={[
-                        styles.categoryOptionText,
-                        { color: newItemCategory === cat.name ? '#fff' : cat.color },
-                      ]}
-                    >
+                    <Text style={[styles.categoryOptionText, { color: newItemCategory === cat.name ? '#fff' : cat.color }]}>
                       {cat.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
 
-              {/* Add Button */}
               <TouchableOpacity
-                style={[
-                  styles.addItemButton,
-                  (!newItemName.trim() || adding) && styles.addButtonDisabled,
-                ]}
+                style={[styles.addItemButton, (!newItemName.trim() || adding) && styles.addButtonDisabled]}
                 onPress={addItem}
                 disabled={!newItemName.trim() || adding}
               >
-                {adding ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.addItemButtonText}>Add to List</Text>
-                )}
+                {adding ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.addItemButtonText}>Add to List</Text>}
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
 
         {/* Edit Item Modal */}
-        <Modal
-          visible={showEditModal}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setShowEditModal(false)}
-        >
+        <Modal visible={showEditModal} animationType="slide" transparent={true} onRequestClose={() => setShowEditModal(false)}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
               <View style={styles.modalHeader}>
@@ -585,7 +694,6 @@ export default function GroceryTodo() {
                 </TouchableOpacity>
               </View>
 
-              {/* Item Name */}
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Item Name</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]}
@@ -595,7 +703,6 @@ export default function GroceryTodo() {
                 onChangeText={setEditName}
               />
 
-              {/* Quantity */}
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Quantity</Text>
               <View style={styles.quantityContainer}>
                 <TouchableOpacity
@@ -619,12 +726,11 @@ export default function GroceryTodo() {
                 </TouchableOpacity>
               </View>
 
-              {/* Category */}
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Category</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <TouchableOpacity
-                    key={cat.name}
+                    key={cat.id}
                     style={[
                       styles.categoryOption,
                       { borderColor: cat.color },
@@ -637,46 +743,174 @@ export default function GroceryTodo() {
                       size={16}
                       color={editCategory === cat.name ? '#fff' : cat.color}
                     />
-                    <Text
-                      style={[
-                        styles.categoryOptionText,
-                        { color: editCategory === cat.name ? '#fff' : cat.color },
-                      ]}
-                    >
+                    <Text style={[styles.categoryOptionText, { color: editCategory === cat.name ? '#fff' : cat.color }]}>
                       {cat.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
 
-              {/* Update Button */}
               <TouchableOpacity
-                style={[
-                  styles.addItemButton,
-                  (!editName.trim() || updating) && styles.addButtonDisabled,
-                ]}
+                style={[styles.addItemButton, (!editName.trim() || updating) && styles.addButtonDisabled]}
                 onPress={updateItem}
                 disabled={!editName.trim() || updating}
               >
-                {updating ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.addItemButtonText}>Save Changes</Text>
-                )}
+                {updating ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.addItemButtonText}>Save Changes</Text>}
               </TouchableOpacity>
 
-              {/* Delete from edit modal */}
-              <TouchableOpacity
-                style={styles.deleteFromEditButton}
-                onPress={() => {
-                  if (editingItem) {
-                    showDeleteConfirmation(editingItem);
-                  }
-                }}
-              >
+              <TouchableOpacity style={styles.deleteFromEditButton} onPress={() => editingItem && showDeleteConfirmation(editingItem)}>
                 <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
                 <Text style={styles.deleteFromEditText}>Delete Item</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Category Management Modal */}
+        <Modal visible={showCategoryModal} animationType="slide" transparent={true} onRequestClose={() => setShowCategoryModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: theme.surface, maxHeight: '80%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Manage Categories</Text>
+                <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                  <Ionicons name="close" size={24} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.addCategoryButton}
+                onPress={() => openCategoryForm()}
+              >
+                <Ionicons name="add-circle-outline" size={24} color="#4CAF50" />
+                <Text style={styles.addCategoryText}>Create New Category</Text>
+              </TouchableOpacity>
+
+              <FlatList
+                data={categories}
+                renderItem={renderCategoryItem}
+                keyExtractor={(item) => item.id}
+                style={styles.categoryList}
+                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+              />
+            </View>
+          </View>
+        </Modal>
+
+        {/* Category Form Modal (Create/Edit) */}
+        <Modal visible={showCategoryFormModal} animationType="slide" transparent={true} onRequestClose={() => setShowCategoryFormModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>
+                  {editingCategory ? 'Edit Category' : 'New Category'}
+                </Text>
+                <TouchableOpacity onPress={() => setShowCategoryFormModal(false)}>
+                  <Ionicons name="close" size={24} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Preview */}
+              <View style={styles.categoryPreview}>
+                <View style={[styles.categoryPreviewIcon, { backgroundColor: categoryColor + '20' }]}>
+                  <Ionicons name={categoryIcon as any} size={32} color={categoryColor} />
+                </View>
+                <Text style={[styles.categoryPreviewName, { color: categoryColor }]}>
+                  {categoryName || 'Category Name'}
+                </Text>
+              </View>
+
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Category Name</Text>
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]}
+                placeholder="Enter category name..."
+                placeholderTextColor={theme.textSecondary}
+                value={categoryName}
+                onChangeText={setCategoryName}
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Color</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorScroll}>
+                {AVAILABLE_COLORS.map((color) => (
+                  <TouchableOpacity
+                    key={color}
+                    style={[
+                      styles.colorOption,
+                      { backgroundColor: color },
+                      categoryColor === color && styles.colorOptionSelected,
+                    ]}
+                    onPress={() => setCategoryColor(color)}
+                  >
+                    {categoryColor === color && (
+                      <Ionicons name="checkmark" size={18} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Icon</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.iconScroll}>
+                {AVAILABLE_ICONS.map((icon) => (
+                  <TouchableOpacity
+                    key={icon}
+                    style={[
+                      styles.iconOption,
+                      { backgroundColor: theme.inputBg },
+                      categoryIcon === icon && { backgroundColor: categoryColor + '30', borderColor: categoryColor, borderWidth: 2 },
+                    ]}
+                    onPress={() => setCategoryIcon(icon)}
+                  >
+                    <Ionicons
+                      name={icon as any}
+                      size={24}
+                      color={categoryIcon === icon ? categoryColor : theme.textSecondary}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.addItemButton, (!categoryName.trim() || savingCategory) && styles.addButtonDisabled]}
+                onPress={saveCategory}
+                disabled={!categoryName.trim() || savingCategory}
+              >
+                {savingCategory ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.addItemButtonText}>
+                    {editingCategory ? 'Save Changes' : 'Create Category'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Delete Category Modal */}
+        <Modal visible={showDeleteCategoryModal} animationType="fade" transparent={true} onRequestClose={() => setShowDeleteCategoryModal(false)}>
+          <View style={styles.deleteModalOverlay}>
+            <View style={[styles.deleteModalContent, { backgroundColor: theme.surface }]}>
+              <View style={styles.deleteModalIcon}>
+                <Ionicons name="pricetag" size={40} color="#ff6b6b" />
+              </View>
+              <Text style={[styles.deleteModalTitle, { color: theme.text }]}>Delete Category?</Text>
+              <Text style={[styles.deleteModalMessage, { color: theme.textSecondary }]}>
+                Are you sure you want to delete "{categoryToDelete?.name}"? Items in this category will be moved to "Other".
+              </Text>
+              <View style={styles.deleteModalButtons}>
+                <TouchableOpacity
+                  style={[styles.deleteModalButton, styles.cancelButton, { backgroundColor: theme.inputBg }]}
+                  onPress={() => setShowDeleteCategoryModal(false)}
+                >
+                  <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.deleteModalButton, styles.confirmDeleteButton]}
+                  onPress={executeDeleteCategory}
+                  disabled={deletingCategory}
+                >
+                  {deletingCategory ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.confirmDeleteText}>Delete</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -686,21 +920,10 @@ export default function GroceryTodo() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-  },
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 16 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -709,18 +932,9 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  headerTitle: { fontSize: 28, fontWeight: 'bold' },
+  headerSubtitle: { fontSize: 14, marginTop: 2 },
+  headerActions: { flexDirection: 'row', gap: 8 },
   iconButton: {
     width: 44,
     height: 44,
@@ -736,14 +950,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
   },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
-  },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, paddingVertical: 14, fontSize: 16 },
   infoBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -751,13 +959,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     gap: 6,
   },
-  infoText: {
-    fontSize: 12,
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
+  infoText: { fontSize: 12 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 100 },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -772,20 +975,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    flex: 1,
-  },
-  sectionBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  sectionBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  sectionTitle: { fontSize: 16, fontWeight: '700', flex: 1 },
+  sectionBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  sectionBadgeText: { fontSize: 14, fontWeight: '600' },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -803,56 +995,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  itemContent: {
-    flex: 1,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  itemText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  itemTextChecked: {
-    textDecorationLine: 'line-through',
-    opacity: 0.5,
-  },
-  tapToEdit: {
-    fontSize: 11,
-    marginTop: 2,
-  },
+  itemContent: { flex: 1 },
+  itemHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  itemText: { fontSize: 16, fontWeight: '500' },
+  itemTextChecked: { textDecorationLine: 'line-through', opacity: 0.5 },
+  tapToEdit: { fontSize: 11, marginTop: 2 },
   quantityBadge: {
     backgroundColor: '#4CAF50',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
-  quantityText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  deleteButton: {
-    padding: 12,
-    marginLeft: 4,
-  },
-  separator: {
-    height: 8,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 18,
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    marginTop: 8,
-  },
+  quantityText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  deleteButton: { padding: 12, marginLeft: 4 },
+  separator: { height: 8 },
+  emptyContainer: { alignItems: 'center', paddingVertical: 60 },
+  emptyText: { fontSize: 18, marginTop: 16 },
+  emptySubtext: { fontSize: 14, marginTop: 8 },
   fab: {
     position: 'absolute',
     right: 20,
@@ -865,7 +1024,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 5,
   },
-  // Delete confirmation modal styles
   deleteModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -889,22 +1047,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  deleteModalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  deleteModalMessage: {
-    fontSize: 15,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  deleteModalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
+  deleteModalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
+  deleteModalMessage: { fontSize: 15, textAlign: 'center', marginBottom: 24, lineHeight: 22 },
+  deleteModalButtons: { flexDirection: 'row', gap: 12, width: '100%' },
   deleteModalButton: {
     flex: 1,
     paddingVertical: 14,
@@ -912,27 +1057,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelButton: {
-    borderWidth: 0,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmDeleteButton: {
-    backgroundColor: '#ff6b6b',
-  },
-  confirmDeleteText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Other modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
+  cancelButton: { borderWidth: 0 },
+  cancelButtonText: { fontSize: 16, fontWeight: '600' },
+  confirmDeleteButton: { backgroundColor: '#ff6b6b' },
+  confirmDeleteText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -945,15 +1074,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
+  modalTitle: { fontSize: 22, fontWeight: 'bold' },
+  inputLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
   modalInput: {
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -961,12 +1083,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
   },
-  quantityContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 12,
-  },
+  quantityContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
   quantityButton: {
     width: 48,
     height: 48,
@@ -974,16 +1091,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  quantityInput: {
-    width: 80,
-    height: 48,
-    borderRadius: 12,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  categoryScroll: {
-    marginBottom: 24,
-  },
+  quantityInput: { width: 80, height: 48, borderRadius: 12, fontSize: 18, fontWeight: '600' },
+  categoryScroll: { marginBottom: 24 },
   categoryOption: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -994,24 +1103,15 @@ const styles = StyleSheet.create({
     marginRight: 10,
     gap: 6,
   },
-  categoryOptionText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
+  categoryOptionText: { fontSize: 14, fontWeight: '500' },
   addItemButton: {
     backgroundColor: '#4CAF50',
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
   },
-  addButtonDisabled: {
-    backgroundColor: '#b2bec3',
-  },
-  addItemButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  addButtonDisabled: { backgroundColor: '#b2bec3' },
+  addItemButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   deleteFromEditButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1020,9 +1120,74 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 8,
   },
-  deleteFromEditText: {
-    color: '#ff6b6b',
-    fontSize: 16,
-    fontWeight: '500',
+  deleteFromEditText: { color: '#ff6b6b', fontSize: 16, fontWeight: '500' },
+  // Category management styles
+  addCategoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+    borderStyle: 'dashed',
+    marginBottom: 16,
+    gap: 8,
+  },
+  addCategoryText: { color: '#4CAF50', fontSize: 16, fontWeight: '600' },
+  categoryList: { flex: 1 },
+  categoryItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  categoryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  categoryItemInfo: { flex: 1 },
+  categoryItemName: { fontSize: 16, fontWeight: '500' },
+  categoryDefaultBadge: { fontSize: 12, marginTop: 2 },
+  categoryItemActions: { flexDirection: 'row', gap: 8 },
+  categoryActionBtn: { padding: 8 },
+  // Category form styles
+  categoryPreview: {
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingVertical: 16,
+  },
+  categoryPreviewIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoryPreviewName: { fontSize: 18, fontWeight: '600' },
+  colorScroll: { marginBottom: 20 },
+  colorOption: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorOptionSelected: { borderWidth: 3, borderColor: '#fff' },
+  iconScroll: { marginBottom: 24 },
+  iconOption: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
