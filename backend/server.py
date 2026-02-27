@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
 from datetime import datetime
+from enum import Enum
 
 
 ROOT_DIR = Path(__file__).parent
@@ -26,19 +27,39 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 
+# Define Categories Enum
+class Category(str, Enum):
+    PRODUCE = "Produce"
+    DAIRY = "Dairy"
+    MEAT = "Meat"
+    BAKERY = "Bakery"
+    BEVERAGES = "Beverages"
+    SNACKS = "Snacks"
+    FROZEN = "Frozen"
+    PANTRY = "Pantry"
+    HOUSEHOLD = "Household"
+    OTHER = "Other"
+
+
 # Define Models
 class GroceryItem(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
+    quantity: int = 1
+    category: str = Category.OTHER.value
     checked: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class GroceryItemCreate(BaseModel):
     name: str
+    quantity: int = 1
+    category: str = Category.OTHER.value
 
 class GroceryItemUpdate(BaseModel):
     checked: Optional[bool] = None
     name: Optional[str] = None
+    quantity: Optional[int] = None
+    category: Optional[str] = None
 
 class StatusCheck(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -53,11 +74,21 @@ class StatusCheckCreate(BaseModel):
 async def root():
     return {"message": "Grocery Todo API"}
 
+# Get available categories
+@api_router.get("/categories")
+async def get_categories():
+    """Get all available categories"""
+    return [cat.value for cat in Category]
+
 # Grocery Routes
 @api_router.get("/groceries", response_model=List[GroceryItem])
-async def get_groceries():
-    """Get all grocery items"""
-    items = await db.groceries.find().sort("created_at", -1).to_list(1000)
+async def get_groceries(sort_by: str = "created_at", sort_order: str = "desc"):
+    """Get all grocery items with optional sorting"""
+    # Determine sort field
+    sort_field = sort_by if sort_by in ["name", "created_at", "category"] else "created_at"
+    sort_direction = -1 if sort_order == "desc" else 1
+    
+    items = await db.groceries.find().sort(sort_field, sort_direction).to_list(1000)
     return [GroceryItem(**item) for item in items]
 
 @api_router.post("/groceries", response_model=GroceryItem)
@@ -66,13 +97,24 @@ async def create_grocery(input: GroceryItemCreate):
     if not input.name.strip():
         raise HTTPException(status_code=400, detail="Item name cannot be empty")
     
-    item = GroceryItem(name=input.name.strip())
+    # Validate quantity
+    quantity = max(1, input.quantity) if input.quantity else 1
+    
+    # Validate category
+    valid_categories = [cat.value for cat in Category]
+    category = input.category if input.category in valid_categories else Category.OTHER.value
+    
+    item = GroceryItem(
+        name=input.name.strip(),
+        quantity=quantity,
+        category=category
+    )
     await db.groceries.insert_one(item.dict())
     return item
 
 @api_router.put("/groceries/{item_id}", response_model=GroceryItem)
 async def update_grocery(item_id: str, input: GroceryItemUpdate):
-    """Update a grocery item (toggle checked status or update name)"""
+    """Update a grocery item"""
     existing = await db.groceries.find_one({"id": item_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -84,6 +126,11 @@ async def update_grocery(item_id: str, input: GroceryItemUpdate):
         if not input.name.strip():
             raise HTTPException(status_code=400, detail="Item name cannot be empty")
         update_data["name"] = input.name.strip()
+    if input.quantity is not None:
+        update_data["quantity"] = max(1, input.quantity)
+    if input.category is not None:
+        valid_categories = [cat.value for cat in Category]
+        update_data["category"] = input.category if input.category in valid_categories else Category.OTHER.value
     
     if update_data:
         await db.groceries.update_one({"id": item_id}, {"$set": update_data})
