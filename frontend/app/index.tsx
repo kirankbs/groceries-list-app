@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   SafeAreaView,
   StatusBar,
   Modal,
@@ -46,8 +45,6 @@ interface GroceryItem {
   created_at: string;
 }
 
-type SortOption = 'created_at' | 'name' | 'category';
-
 export default function GroceryTodo() {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
@@ -58,7 +55,6 @@ export default function GroceryTodo() {
   const [adding, setAdding] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showSortModal, setShowSortModal] = useState(false);
   
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -67,6 +63,11 @@ export default function GroceryTodo() {
   const [editQuantity, setEditQuantity] = useState('1');
   const [editCategory, setEditCategory] = useState('Other');
   const [updating, setUpdating] = useState(false);
+
+  // Delete confirmation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<GroceryItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Theme colors
   const theme = useMemo(() => ({
@@ -123,7 +124,6 @@ export default function GroceryTodo() {
       }
     } catch (error) {
       console.error('Error adding item:', error);
-      Alert.alert('Error', 'Failed to add item');
     } finally {
       setAdding(false);
     }
@@ -190,63 +190,60 @@ export default function GroceryTodo() {
       }
     } catch (error) {
       console.error('Error updating item:', error);
-      Alert.alert('Error', 'Failed to update item');
     } finally {
       setUpdating(false);
     }
   };
 
-  // Delete item - Fixed implementation
-  const deleteItem = async (itemId: string) => {
+  // Show delete confirmation modal
+  const showDeleteConfirmation = (item: GroceryItem) => {
+    setItemToDelete(item);
+    setShowDeleteModal(true);
+    // Close edit modal if open
+    setShowEditModal(false);
+  };
+
+  // Delete item - actual deletion
+  const executeDelete = async () => {
+    if (!itemToDelete) return;
+
+    setDeleting(true);
     try {
-      console.log('Deleting item:', itemId);
+      console.log('Deleting item:', itemToDelete.id);
       const response = await fetch(
-        `${EXPO_PUBLIC_BACKEND_URL}/api/groceries/${itemId}`,
+        `${EXPO_PUBLIC_BACKEND_URL}/api/groceries/${itemToDelete.id}`,
         { method: 'DELETE' }
       );
 
       console.log('Delete response status:', response.status);
       
       if (response.ok) {
-        setItems((prev) => prev.filter((i) => i.id !== itemId));
+        setItems((prev) => prev.filter((i) => i.id !== itemToDelete.id));
         console.log('Item deleted successfully');
+        setShowDeleteModal(false);
+        setItemToDelete(null);
       } else {
-        const errorData = await response.text();
-        console.error('Delete failed:', errorData);
-        Alert.alert('Error', 'Failed to delete item');
+        console.error('Delete failed');
       }
     } catch (error) {
       console.error('Error deleting item:', error);
-      Alert.alert('Error', 'Failed to delete item');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  // Confirm delete - Fixed to properly call deleteItem
-  const confirmDelete = (item: GroceryItem) => {
-    Alert.alert(
-      'Delete Item',
-      `Are you sure you want to delete "${item.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: () => {
-            deleteItem(item.id);
-          }
-        },
-      ]
-    );
+  // Cancel delete
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setItemToDelete(null);
   };
 
   // Filter items based on search query and group by category
   const groupedItems = useMemo(() => {
-    // First filter by search
     let filtered = items.filter((item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Group by category
     const categoryOrder = CATEGORIES.map(c => c.name);
     const groups: { [key: string]: GroceryItem[] } = {};
 
@@ -258,7 +255,6 @@ export default function GroceryTodo() {
       groups[cat].push(item);
     });
 
-    // Convert to SectionList format, sorted by category order
     const sections = categoryOrder
       .filter(cat => groups[cat] && groups[cat].length > 0)
       .map(cat => ({
@@ -276,8 +272,6 @@ export default function GroceryTodo() {
   }, [items]);
 
   const renderItem = ({ item }: { item: GroceryItem }) => {
-    const categoryInfo = getCategoryInfo(item.category);
-    
     return (
       <View style={[styles.itemContainer, { backgroundColor: theme.surface }]}>
         {/* Checkbox */}
@@ -311,12 +305,13 @@ export default function GroceryTodo() {
           </Text>
         </TouchableOpacity>
         
-        {/* Delete button - Fixed */}
+        {/* Delete button */}
         <TouchableOpacity
           style={styles.deleteButton}
-          onPress={() => confirmDelete(item)}
+          onPress={() => showDeleteConfirmation(item)}
+          activeOpacity={0.6}
         >
-          <Ionicons name="trash-outline" size={22} color="#ff6b6b" />
+          <Ionicons name="trash-outline" size={24} color="#ff6b6b" />
         </TouchableOpacity>
       </View>
     );
@@ -435,6 +430,45 @@ export default function GroceryTodo() {
         >
           <Ionicons name="add" size={32} color="#fff" />
         </TouchableOpacity>
+
+        {/* Delete Confirmation Modal - Custom modal that works on web */}
+        <Modal
+          visible={showDeleteModal}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={cancelDelete}
+        >
+          <View style={styles.deleteModalOverlay}>
+            <View style={[styles.deleteModalContent, { backgroundColor: theme.surface }]}>
+              <View style={styles.deleteModalIcon}>
+                <Ionicons name="trash" size={40} color="#ff6b6b" />
+              </View>
+              <Text style={[styles.deleteModalTitle, { color: theme.text }]}>Delete Item?</Text>
+              <Text style={[styles.deleteModalMessage, { color: theme.textSecondary }]}>
+                Are you sure you want to delete "{itemToDelete?.name}"?
+              </Text>
+              <View style={styles.deleteModalButtons}>
+                <TouchableOpacity
+                  style={[styles.deleteModalButton, styles.cancelButton, { backgroundColor: theme.inputBg }]}
+                  onPress={cancelDelete}
+                >
+                  <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.deleteModalButton, styles.confirmDeleteButton]}
+                  onPress={executeDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.confirmDeleteText}>Delete</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Add Item Modal */}
         <Modal
@@ -636,8 +670,7 @@ export default function GroceryTodo() {
                 style={styles.deleteFromEditButton}
                 onPress={() => {
                   if (editingItem) {
-                    setShowEditModal(false);
-                    confirmDelete(editingItem);
+                    showDeleteConfirmation(editingItem);
                   }
                 }}
               >
@@ -802,8 +835,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   deleteButton: {
-    padding: 10,
-    marginLeft: 8,
+    padding: 12,
+    marginLeft: 4,
   },
   separator: {
     height: 8,
@@ -832,6 +865,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 5,
   },
+  // Delete confirmation modal styles
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  deleteModalContent: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+  },
+  deleteModalIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  deleteModalMessage: {
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  deleteModalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    borderWidth: 0,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmDeleteButton: {
+    backgroundColor: '#ff6b6b',
+  },
+  confirmDeleteText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Other modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
