@@ -5,7 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  SectionList,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -57,9 +57,16 @@ export default function GroceryTodo() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('created_at');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
+  
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<GroceryItem | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editQuantity, setEditQuantity] = useState('1');
+  const [editCategory, setEditCategory] = useState('Other');
+  const [updating, setUpdating] = useState(false);
 
   // Theme colors
   const theme = useMemo(() => ({
@@ -74,9 +81,7 @@ export default function GroceryTodo() {
   // Fetch all grocery items
   const fetchItems = useCallback(async () => {
     try {
-      const response = await fetch(
-        `${EXPO_PUBLIC_BACKEND_URL}/api/groceries?sort_by=${sortBy}&sort_order=desc`
-      );
+      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/groceries`);
       if (response.ok) {
         const data = await response.json();
         setItems(data);
@@ -86,7 +91,7 @@ export default function GroceryTodo() {
     } finally {
       setLoading(false);
     }
-  }, [sortBy]);
+  }, []);
 
   useEffect(() => {
     fetchItems();
@@ -147,70 +152,150 @@ export default function GroceryTodo() {
     }
   };
 
-  // Delete item
+  // Open edit modal
+  const openEditModal = (item: GroceryItem) => {
+    setEditingItem(item);
+    setEditName(item.name);
+    setEditQuantity(String(item.quantity));
+    setEditCategory(item.category);
+    setShowEditModal(true);
+  };
+
+  // Update item
+  const updateItem = async () => {
+    if (!editingItem || !editName.trim()) return;
+
+    setUpdating(true);
+    try {
+      const response = await fetch(
+        `${EXPO_PUBLIC_BACKEND_URL}/api/groceries/${editingItem.id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: editName.trim(),
+            quantity: parseInt(editQuantity) || 1,
+            category: editCategory,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const updatedItem = await response.json();
+        setItems((prev) =>
+          prev.map((i) => (i.id === editingItem.id ? updatedItem : i))
+        );
+        setShowEditModal(false);
+        setEditingItem(null);
+      }
+    } catch (error) {
+      console.error('Error updating item:', error);
+      Alert.alert('Error', 'Failed to update item');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Delete item - Fixed implementation
   const deleteItem = async (itemId: string) => {
     try {
+      console.log('Deleting item:', itemId);
       const response = await fetch(
         `${EXPO_PUBLIC_BACKEND_URL}/api/groceries/${itemId}`,
         { method: 'DELETE' }
       );
 
+      console.log('Delete response status:', response.status);
+      
       if (response.ok) {
         setItems((prev) => prev.filter((i) => i.id !== itemId));
+        console.log('Item deleted successfully');
+      } else {
+        const errorData = await response.text();
+        console.error('Delete failed:', errorData);
+        Alert.alert('Error', 'Failed to delete item');
       }
     } catch (error) {
       console.error('Error deleting item:', error);
+      Alert.alert('Error', 'Failed to delete item');
     }
   };
 
-  // Confirm delete
+  // Confirm delete - Fixed to properly call deleteItem
   const confirmDelete = (item: GroceryItem) => {
     Alert.alert(
       'Delete Item',
       `Are you sure you want to delete "${item.name}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteItem(item.id) },
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: () => {
+            deleteItem(item.id);
+          }
+        },
       ]
     );
   };
 
-  // Filter items based on search query
-  const filteredItems = useMemo(() => {
+  // Filter items based on search query and group by category
+  const groupedItems = useMemo(() => {
+    // First filter by search
     let filtered = items.filter((item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-    
-    // Sort locally for immediate response
-    if (sortBy === 'name') {
-      filtered.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === 'category') {
-      filtered.sort((a, b) => a.category.localeCompare(b.category));
-    }
-    
-    return filtered;
-  }, [items, searchQuery, sortBy]);
 
-  // Separate checked and unchecked items
-  const uncheckedItems = filteredItems.filter((item) => !item.checked);
-  const checkedItems = filteredItems.filter((item) => item.checked);
+    // Group by category
+    const categoryOrder = CATEGORIES.map(c => c.name);
+    const groups: { [key: string]: GroceryItem[] } = {};
+
+    filtered.forEach(item => {
+      const cat = item.category || 'Other';
+      if (!groups[cat]) {
+        groups[cat] = [];
+      }
+      groups[cat].push(item);
+    });
+
+    // Convert to SectionList format, sorted by category order
+    const sections = categoryOrder
+      .filter(cat => groups[cat] && groups[cat].length > 0)
+      .map(cat => ({
+        title: cat,
+        data: groups[cat],
+        categoryInfo: getCategoryInfo(cat),
+      }));
+
+    return sections;
+  }, [items, searchQuery]);
+
+  // Count unchecked items
+  const uncheckedCount = useMemo(() => {
+    return items.filter(i => !i.checked).length;
+  }, [items]);
 
   const renderItem = ({ item }: { item: GroceryItem }) => {
     const categoryInfo = getCategoryInfo(item.category);
     
     return (
-      <TouchableOpacity
-        style={[styles.itemContainer, { backgroundColor: theme.surface }]}
-        onPress={() => toggleItem(item)}
-        onLongPress={() => confirmDelete(item)}
-        activeOpacity={0.7}
-      >
-        <View style={[styles.checkbox, item.checked && { backgroundColor: '#4CAF50', borderColor: '#4CAF50' }]}>
+      <View style={[styles.itemContainer, { backgroundColor: theme.surface }]}>
+        {/* Checkbox */}
+        <TouchableOpacity
+          style={[styles.checkbox, item.checked && { backgroundColor: '#4CAF50', borderColor: '#4CAF50' }]}
+          onPress={() => toggleItem(item)}
+        >
           {item.checked && (
             <Ionicons name="checkmark" size={18} color="#fff" />
           )}
-        </View>
-        <View style={styles.itemContent}>
+        </TouchableOpacity>
+        
+        {/* Item content - tap to edit */}
+        <TouchableOpacity 
+          style={styles.itemContent}
+          onPress={() => openEditModal(item)}
+          activeOpacity={0.7}
+        >
           <View style={styles.itemHeader}>
             <Text style={[styles.itemText, { color: theme.text }, item.checked && styles.itemTextChecked]}>
               {item.name}
@@ -221,40 +306,37 @@ export default function GroceryTodo() {
               </View>
             )}
           </View>
-          <View style={[styles.categoryTag, { backgroundColor: categoryInfo.color + '20' }]}>
-            <Ionicons name={categoryInfo.icon as any} size={12} color={categoryInfo.color} />
-            <Text style={[styles.categoryText, { color: categoryInfo.color }]}>
-              {item.category}
-            </Text>
-          </View>
-        </View>
+          <Text style={[styles.tapToEdit, { color: theme.textSecondary }]}>
+            Tap to edit
+          </Text>
+        </TouchableOpacity>
+        
+        {/* Delete button - Fixed */}
         <TouchableOpacity
           style={styles.deleteButton}
           onPress={() => confirmDelete(item)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
+          <Ionicons name="trash-outline" size={22} color="#ff6b6b" />
         </TouchableOpacity>
-      </TouchableOpacity>
+      </View>
     );
   };
 
-  const renderSectionHeader = (title: string, count: number) => (
-    <View style={styles.sectionHeader}>
-      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>{title}</Text>
-      <View style={[styles.badge, { backgroundColor: darkMode ? '#333' : '#dfe6e9' }]}>
-        <Text style={[styles.badgeText, { color: theme.textSecondary }]}>{count}</Text>
+  const renderSectionHeader = ({ section }: { section: { title: string; categoryInfo: { color: string; icon: string } } }) => (
+    <View style={[styles.sectionHeader, { backgroundColor: theme.background }]}>
+      <View style={[styles.sectionIcon, { backgroundColor: section.categoryInfo.color + '20' }]}>
+        <Ionicons name={section.categoryInfo.icon as any} size={18} color={section.categoryInfo.color} />
+      </View>
+      <Text style={[styles.sectionTitle, { color: section.categoryInfo.color }]}>
+        {section.title}
+      </Text>
+      <View style={[styles.sectionBadge, { backgroundColor: section.categoryInfo.color + '20' }]}>
+        <Text style={[styles.sectionBadgeText, { color: section.categoryInfo.color }]}>
+          {groupedItems.find(s => s.title === section.title)?.data.length || 0}
+        </Text>
       </View>
     </View>
   );
-
-  const getSortLabel = () => {
-    switch (sortBy) {
-      case 'name': return 'Name';
-      case 'category': return 'Category';
-      default: return 'Date';
-    }
-  };
 
   if (loading) {
     return (
@@ -277,7 +359,7 @@ export default function GroceryTodo() {
           <View>
             <Text style={[styles.headerTitle, { color: theme.text }]}>Grocery List</Text>
             <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-              {uncheckedItems.length} items to buy
+              {uncheckedCount} items to buy
             </Text>
           </View>
           <View style={styles.headerActions}>
@@ -290,12 +372,6 @@ export default function GroceryTodo() {
                 size={22}
                 color={theme.text}
               />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.iconButton, { backgroundColor: theme.surface }]}
-              onPress={() => setShowSortModal(true)}
-            >
-              <Ionicons name="funnel-outline" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
         </View>
@@ -317,25 +393,23 @@ export default function GroceryTodo() {
           )}
         </View>
 
-        {/* Sort indicator */}
-        <View style={styles.sortIndicator}>
-          <Text style={[styles.sortText, { color: theme.textSecondary }]}>
-            Sorted by: {getSortLabel()}
+        {/* Info text */}
+        <View style={styles.infoBar}>
+          <Ionicons name="information-circle-outline" size={16} color={theme.textSecondary} />
+          <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+            Items grouped by category • Tap item to edit
           </Text>
         </View>
 
-        {/* Items List */}
-        <FlatList
-          data={[...uncheckedItems, ...checkedItems]}
+        {/* Items List - Grouped by Category */}
+        <SectionList
+          sections={groupedItems}
           renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            uncheckedItems.length > 0 ? (
-              renderSectionHeader('To Buy', uncheckedItems.length)
-            ) : null
-          }
+          stickySectionHeadersEnabled={true}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="cart-outline" size={64} color={theme.textSecondary} />
@@ -353,13 +427,6 @@ export default function GroceryTodo() {
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
-
-        {/* Completed Section Header */}
-        {checkedItems.length > 0 && uncheckedItems.length > 0 && (
-          <View style={styles.completedDivider}>
-            {renderSectionHeader('Completed', checkedItems.length)}
-          </View>
-        )}
 
         {/* Floating Add Button */}
         <TouchableOpacity
@@ -413,7 +480,7 @@ export default function GroceryTodo() {
                 />
                 <TouchableOpacity
                   style={[styles.quantityButton, { backgroundColor: theme.inputBg }]}
-                  onPress={() => setNewItemQuantity(String(parseInt(newItemQuantity) + 1))}
+                  onPress={() => setNewItemQuantity(String(parseInt(newItemQuantity || '0') + 1))}
                 >
                   <Ionicons name="add" size={24} color={theme.text} />
                 </TouchableOpacity>
@@ -468,57 +535,117 @@ export default function GroceryTodo() {
           </View>
         </Modal>
 
-        {/* Sort Modal */}
+        {/* Edit Item Modal */}
         <Modal
-          visible={showSortModal}
-          animationType="fade"
+          visible={showEditModal}
+          animationType="slide"
           transparent={true}
-          onRequestClose={() => setShowSortModal(false)}
+          onRequestClose={() => setShowEditModal(false)}
         >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowSortModal(false)}
-          >
-            <View style={[styles.sortModalContent, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.sortModalTitle, { color: theme.text }]}>Sort By</Text>
-              
-              {[
-                { value: 'created_at', label: 'Date Added', icon: 'time-outline' },
-                { value: 'name', label: 'Name (A-Z)', icon: 'text-outline' },
-                { value: 'category', label: 'Category', icon: 'pricetag-outline' },
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.sortOption,
-                    sortBy === option.value && styles.sortOptionActive,
-                  ]}
-                  onPress={() => {
-                    setSortBy(option.value as SortOption);
-                    setShowSortModal(false);
-                  }}
-                >
-                  <Ionicons
-                    name={option.icon as any}
-                    size={22}
-                    color={sortBy === option.value ? '#4CAF50' : theme.textSecondary}
-                  />
-                  <Text
-                    style={[
-                      styles.sortOptionText,
-                      { color: sortBy === option.value ? '#4CAF50' : theme.text },
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                  {sortBy === option.value && (
-                    <Ionicons name="checkmark" size={22} color="#4CAF50" />
-                  )}
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Edit Item</Text>
+                <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                  <Ionicons name="close" size={24} color={theme.text} />
                 </TouchableOpacity>
-              ))}
+              </View>
+
+              {/* Item Name */}
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Item Name</Text>
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]}
+                placeholder="Item name..."
+                placeholderTextColor={theme.textSecondary}
+                value={editName}
+                onChangeText={setEditName}
+              />
+
+              {/* Quantity */}
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Quantity</Text>
+              <View style={styles.quantityContainer}>
+                <TouchableOpacity
+                  style={[styles.quantityButton, { backgroundColor: theme.inputBg }]}
+                  onPress={() => setEditQuantity(String(Math.max(1, parseInt(editQuantity) - 1)))}
+                >
+                  <Ionicons name="remove" size={24} color={theme.text} />
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.quantityInput, { backgroundColor: theme.inputBg, color: theme.text }]}
+                  value={editQuantity}
+                  onChangeText={setEditQuantity}
+                  keyboardType="numeric"
+                  textAlign="center"
+                />
+                <TouchableOpacity
+                  style={[styles.quantityButton, { backgroundColor: theme.inputBg }]}
+                  onPress={() => setEditQuantity(String(parseInt(editQuantity || '0') + 1))}
+                >
+                  <Ionicons name="add" size={24} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Category */}
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+                {CATEGORIES.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.name}
+                    style={[
+                      styles.categoryOption,
+                      { borderColor: cat.color },
+                      editCategory === cat.name && { backgroundColor: cat.color },
+                    ]}
+                    onPress={() => setEditCategory(cat.name)}
+                  >
+                    <Ionicons
+                      name={cat.icon as any}
+                      size={16}
+                      color={editCategory === cat.name ? '#fff' : cat.color}
+                    />
+                    <Text
+                      style={[
+                        styles.categoryOptionText,
+                        { color: editCategory === cat.name ? '#fff' : cat.color },
+                      ]}
+                    >
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Update Button */}
+              <TouchableOpacity
+                style={[
+                  styles.addItemButton,
+                  (!editName.trim() || updating) && styles.addButtonDisabled,
+                ]}
+                onPress={updateItem}
+                disabled={!editName.trim() || updating}
+              >
+                {updating ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.addItemButtonText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Delete from edit modal */}
+              <TouchableOpacity
+                style={styles.deleteFromEditButton}
+                onPress={() => {
+                  if (editingItem) {
+                    setShowEditModal(false);
+                    confirmDelete(editingItem);
+                  }
+                }}
+              >
+                <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
+                <Text style={styles.deleteFromEditText}>Delete Item</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+          </View>
         </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -584,11 +711,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
   },
-  sortIndicator: {
+  infoBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 8,
+    gap: 6,
   },
-  sortText: {
+  infoText: {
     fontSize: 12,
   },
   listContent: {
@@ -598,22 +728,30 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 8,
+    paddingVertical: 12,
+    paddingTop: 16,
+    gap: 10,
+  },
+  sectionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    flex: 1,
   },
-  badge: {
+  sectionBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 8,
   },
-  badgeText: {
+  sectionBadgeText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   itemContainer: {
     flexDirection: 'row',
@@ -623,8 +761,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   checkbox: {
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     borderRadius: 8,
     borderWidth: 2,
     borderColor: '#4CAF50',
@@ -648,6 +786,10 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     opacity: 0.5,
   },
+  tapToEdit: {
+    fontSize: 11,
+    marginTop: 2,
+  },
   quantityBadge: {
     backgroundColor: '#4CAF50',
     paddingHorizontal: 8,
@@ -659,25 +801,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  categoryTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginTop: 4,
-    gap: 4,
-  },
-  categoryText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
   deleteButton: {
-    padding: 8,
+    padding: 10,
+    marginLeft: 8,
   },
   separator: {
-    height: 10,
+    height: 8,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -690,9 +819,6 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     marginTop: 8,
-  },
-  completedDivider: {
-    paddingHorizontal: 20,
   },
   fab: {
     position: 'absolute',
@@ -715,7 +841,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    maxHeight: '80%',
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -790,32 +916,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  sortModalContent: {
-    position: 'absolute',
-    top: '30%',
-    left: 20,
-    right: 20,
-    borderRadius: 16,
-    padding: 20,
-  },
-  sortModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  sortOption: {
+  deleteFromEditButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    gap: 12,
+    justifyContent: 'center',
+    paddingVertical: 16,
+    marginTop: 12,
+    gap: 8,
   },
-  sortOptionActive: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-  },
-  sortOptionText: {
+  deleteFromEditText: {
+    color: '#ff6b6b',
     fontSize: 16,
-    flex: 1,
+    fontWeight: '500',
   },
 });
