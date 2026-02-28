@@ -230,7 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const token = await getStoredToken();
       if (token) {
-        const success = await fetchUserData(token);
+        const success = await fetchUserData(token, true);
         if (success) {
           setSessionToken(token);
         }
@@ -240,7 +240,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initAuth();
-  }, [getStoredToken, fetchUserData, processSessionId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount - no deps to prevent circular re-runs
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
