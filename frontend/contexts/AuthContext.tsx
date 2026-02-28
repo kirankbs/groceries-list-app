@@ -462,11 +462,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await response.json();
         setLists(data);
         
-        // Auto-select first active list if none selected
-        if (!currentList && data.length > 0) {
+        // Auto-select first active list
+        // Always select if currentList is null OR if currentList belongs to different workspace
+        const shouldAutoSelect = !currentList || currentList.workspace_id !== currentWorkspace.workspace_id;
+        if (shouldAutoSelect && data.length > 0) {
           const activeList = data.find((l: ShoppingList) => l.status !== 'completed');
           if (activeList) {
             setCurrentListState(activeList);
+          } else if (data.length > 0) {
+            // If no active list, select the first one
+            setCurrentListState(data[0]);
           }
         }
       }
