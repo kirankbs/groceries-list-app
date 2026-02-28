@@ -509,55 +509,67 @@ export default function GroceryTodo() {
 
         {/* =============== MODALS =============== */}
 
-        {/* Workspace Switcher */}
+        {/* Household Switcher */}
         <Modal visible={showWorkspaceSwitcher} animationType="slide" transparent onRequestClose={() => setShowWorkspaceSwitcher(false)}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Workspaces</Text>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Households</Text>
                 <TouchableOpacity onPress={() => setShowWorkspaceSwitcher(false)}><Ionicons name="close" size={24} color={theme.text} /></TouchableOpacity>
               </View>
               <FlatList
                 data={workspaces}
                 keyExtractor={w => w.workspace_id}
                 renderItem={({ item: ws }) => (
-                  <TouchableOpacity style={[styles.workspaceItem, { backgroundColor: currentWorkspace?.workspace_id === ws.workspace_id ? '#4CAF5020' : 'transparent' }]} onPress={() => { setCurrentWorkspace(ws); setShowWorkspaceSwitcher(false); }}>
-                    <Ionicons name={ws.type === 'personal' ? 'person' : 'people'} size={24} color={ws.type === 'personal' ? '#2196F3' : '#4CAF50'} />
-                    <View style={styles.workspaceItemInfo}>
-                      <Text style={[styles.workspaceItemName, { color: theme.text }]}>{ws.name}</Text>
-                      <Text style={[styles.workspaceItemMeta, { color: theme.textSecondary }]}>
-                        {ws.type === 'personal' ? 'Personal' : `${ws.members?.length || 1} members`}
-                      </Text>
-                    </View>
-                    {currentWorkspace?.workspace_id === ws.workspace_id && <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />}
-                  </TouchableOpacity>
+                  <View style={[styles.workspaceItem, { backgroundColor: currentWorkspace?.workspace_id === ws.workspace_id ? '#4CAF5020' : 'transparent' }]}>
+                    <TouchableOpacity style={styles.workspaceItemMain} onPress={() => { setCurrentWorkspace(ws); setShowWorkspaceSwitcher(false); }}>
+                      <Ionicons name={ws.type === 'personal' ? 'person' : 'people'} size={24} color={ws.type === 'personal' ? '#2196F3' : '#4CAF50'} />
+                      <View style={styles.workspaceItemInfo}>
+                        <Text style={[styles.workspaceItemName, { color: theme.text }]}>{ws.name}</Text>
+                        <Text style={[styles.workspaceItemMeta, { color: theme.textSecondary }]}>
+                          {ws.type === 'personal' ? 'Personal' : `${ws.members?.length || 1} members`}
+                        </Text>
+                      </View>
+                      {currentWorkspace?.workspace_id === ws.workspace_id && <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />}
+                    </TouchableOpacity>
+                    {ws.type === 'shared' && (
+                      <View style={styles.workspaceItemActions}>
+                        <TouchableOpacity style={styles.workspaceItemActionBtn} onPress={() => handleShowHouseholdInvite(ws)}>
+                          <Ionicons name="share-outline" size={18} color="#4CAF50" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.workspaceItemActionBtn} onPress={() => { setSelectedHousehold(ws); setShowHouseholdDetailsModal(true); setShowWorkspaceSwitcher(false); }}>
+                          <Ionicons name="settings-outline" size={18} color={theme.textSecondary} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
                 )}
                 ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
               />
               <View style={styles.workspaceActions}>
                 <TouchableOpacity style={styles.workspaceActionBtn} onPress={() => { setShowWorkspaceSwitcher(false); setShowCreateWorkspaceModal(true); }}>
                   <Ionicons name="add-circle-outline" size={22} color="#4CAF50" />
-                  <Text style={styles.workspaceActionText}>Create Workspace</Text>
+                  <Text style={styles.workspaceActionText}>Create Household</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.workspaceActionBtn} onPress={() => { setShowWorkspaceSwitcher(false); setShowJoinWorkspaceModal(true); }}>
                   <Ionicons name="enter-outline" size={22} color="#2196F3" />
-                  <Text style={[styles.workspaceActionText, { color: '#2196F3' }]}>Join Workspace</Text>
+                  <Text style={[styles.workspaceActionText, { color: '#2196F3' }]}>Join Household</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
 
-        {/* Create Workspace Modal */}
+        {/* Create Household Modal */}
         <Modal visible={showCreateWorkspaceModal} animationType="slide" transparent onRequestClose={() => setShowCreateWorkspaceModal(false)}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>New Workspace</Text>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>New Household</Text>
                 <TouchableOpacity onPress={() => setShowCreateWorkspaceModal(false)}><Ionicons name="close" size={24} color={theme.text} /></TouchableOpacity>
               </View>
-              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Workspace Name</Text>
-              <TextInput style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]} placeholder="e.g., Family, Office..." placeholderTextColor={theme.textSecondary} value={workspaceName} onChangeText={setWorkspaceName} />
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Household Name</Text>
+              <TextInput style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]} placeholder="e.g., My Family, Roommates..." placeholderTextColor={theme.textSecondary} value={workspaceName} onChangeText={setWorkspaceName} />
               <TouchableOpacity style={[styles.primaryButton, (!workspaceName.trim() || workspaceLoading) && styles.buttonDisabled]} onPress={handleCreateWorkspace} disabled={!workspaceName.trim() || workspaceLoading}>
                 {workspaceLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Create Workspace</Text>}
               </TouchableOpacity>
