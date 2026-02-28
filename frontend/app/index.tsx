@@ -1059,4 +1059,13 @@ const styles = StyleSheet.create({
   categoryListItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, gap: 12 },
   categoryListIcon: { width: 36, height: 36, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
   categoryListName: { fontSize: 16, fontWeight: '500' },
+  workspaceItemMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  workspaceItemActions: { flexDirection: 'row', gap: 4 },
+  workspaceItemActionBtn: { width: 36, height: 36, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.05)' },
+  householdInfoCard: { alignItems: 'center', padding: 20, borderRadius: 12, marginBottom: 8 },
+  householdInfoName: { fontSize: 18, fontWeight: 'bold', marginTop: 8 },
+  householdInfoMeta: { fontSize: 14, marginTop: 4 },
+  householdActions: { marginTop: 20, gap: 12 },
+  householdActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8 },
+  householdActionBtnText: { fontSize: 16, fontWeight: '600' },
 });
