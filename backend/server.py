@@ -344,6 +344,22 @@ async def get_me(request: Request):
         {"_id": 0}
     ).sort("created_at", 1).to_list(100)
     
+    # Ensure user always has a personal workspace
+    personal_ws = next((w for w in workspaces if w.get("type") == "personal"), None)
+    if not personal_ws:
+        # Create a new personal workspace if none exists
+        personal_workspace_id = await create_personal_workspace(user.user_id, user.name)
+        # Update user with new personal workspace id
+        await db.users.update_one(
+            {"user_id": user.user_id},
+            {"$set": {"personal_workspace_id": personal_workspace_id}}
+        )
+        # Re-fetch workspaces
+        workspaces = await db.workspaces.find(
+            {"member_ids": user.user_id},
+            {"_id": 0}
+        ).sort("created_at", 1).to_list(100)
+    
     # Add member details to each workspace
     for workspace in workspaces:
         members = await db.users.find(
