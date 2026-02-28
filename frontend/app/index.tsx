@@ -167,6 +167,14 @@ export default function GroceryTodo() {
     if (currentWorkspace) fetchCategories();
   }, [currentWorkspace, fetchCategories]);
 
+  // Fetch lists when workspace changes
+  useEffect(() => {
+    if (currentWorkspace) {
+      fetchLists();
+      fetchTemplates();
+    }
+  }, [currentWorkspace, fetchLists, fetchTemplates]);
+
   useEffect(() => {
     if (currentList) fetchItems();
   }, [currentList, fetchItems]);
