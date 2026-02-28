@@ -421,6 +421,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data.invite_code;
   }, [sessionToken, fetchWorkspaces]);
 
+  const deleteWorkspace = useCallback(async (workspaceId: string) => {
+    if (!sessionToken) throw new Error('Not authenticated');
+
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${workspaceId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${sessionToken}` },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to delete household');
+    }
+
+    await fetchWorkspaces();
+    
+    // If deleted the current workspace, switch to personal
+    if (currentWorkspace?.workspace_id === workspaceId) {
+      const personalWs = workspaces.find(w => w.type === 'personal');
+      if (personalWs) {
+        setCurrentWorkspaceState(personalWs);
+      }
+    }
+  }, [sessionToken, fetchWorkspaces, currentWorkspace, workspaces]);
+
   // List functions
   const setCurrentList = useCallback((list: ShoppingList | null) => {
     setCurrentListState(list);
