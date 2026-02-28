@@ -373,7 +373,7 @@ export default function GroceryTodo() {
             </Text>
           </View>
           <View style={styles.loginFeatures}>
-            {['Multiple workspaces', 'Share with family', 'Shopping sessions', 'Templates'].map(f => (
+            {['Multiple households', 'Share with family', 'Shopping sessions', 'Templates'].map(f => (
               <View key={f} style={styles.featureRow}>
                 <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
                 <Text style={[styles.featureText, { color: theme.text }]}>{f}</Text>
