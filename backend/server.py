@@ -515,6 +515,33 @@ async def regenerate_invite_code(workspace_id: str, request: Request):
     )
     return {"invite_code": new_code}
 
+@api_router.delete("/workspaces/{workspace_id}")
+async def delete_workspace(workspace_id: str, request: Request):
+    """Delete a workspace (owner only)"""
+    user = await require_auth(request)
+    workspace = await verify_workspace_access(user, workspace_id)
+    
+    if workspace.get("type") == "personal":
+        raise HTTPException(status_code=400, detail="Cannot delete your personal household")
+    
+    if workspace["owner_id"] != user.user_id:
+        raise HTTPException(status_code=403, detail="Only the owner can delete this household")
+    
+    # Get all lists first before deleting workspace
+    lists = await db.shopping_lists.find({"workspace_id": workspace_id}).to_list(1000)
+    list_ids = [l["list_id"] for l in lists]
+    
+    # Delete all items in lists of this workspace
+    if list_ids:
+        await db.grocery_items.delete_many({"list_id": {"$in": list_ids}})
+    
+    # Delete workspace data
+    await db.shopping_lists.delete_many({"workspace_id": workspace_id})
+    await db.categories.delete_many({"workspace_id": workspace_id})
+    await db.workspaces.delete_one({"workspace_id": workspace_id})
+    
+    return {"message": "Household deleted successfully"}
+
 
 # ==================== SHOPPING LIST ROUTES ====================
 
