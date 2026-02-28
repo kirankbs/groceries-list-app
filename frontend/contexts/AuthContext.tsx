@@ -607,6 +607,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createWorkspace,
         joinWorkspace,
         leaveWorkspace,
+        deleteWorkspace,
         getInviteCode,
         regenerateInviteCode,
         fetchWorkspaces,
