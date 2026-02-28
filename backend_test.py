@@ -477,7 +477,8 @@ class BackendTester:
         finally:
             # Cleanup
             await self.cleanup_test_data()
-            await self.client.close()
+            if self.client:
+                self.client.close()
         
         # Print summary
         print("\n" + "="*60)
