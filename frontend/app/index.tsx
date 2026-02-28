@@ -54,7 +54,7 @@ export default function GroceryTodo() {
   const {
     user, workspaces, currentWorkspace, currentList, lists, templates,
     isLoading: authLoading, isAuthenticated, login, logout, sessionToken,
-    setCurrentWorkspace, createWorkspace, joinWorkspace, leaveWorkspace,
+    setCurrentWorkspace, createWorkspace, joinWorkspace, leaveWorkspace, deleteWorkspace,
     getInviteCode, fetchWorkspaces, setCurrentList, fetchLists, fetchTemplates,
     createList, updateList, deleteList, saveAsTemplate
   } = useAuth();
