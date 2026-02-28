@@ -33,7 +33,7 @@ class User(BaseModel):
     email: str
     name: str
     picture: Optional[str] = None
-    personal_workspace_id: str  # Every user has a personal workspace
+    personal_workspace_id: Optional[str] = None  # Every user has a personal workspace (migrated)
     created_at: datetime
 
 class Workspace(BaseModel):
