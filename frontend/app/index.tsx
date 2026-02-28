@@ -266,6 +266,28 @@ export default function GroceryTodo() {
     } catch (e) { console.error(e); }
   };
 
+  const handleShowHouseholdInvite = async (ws: typeof currentWorkspace) => {
+    if (!ws) return;
+    try {
+      const code = await getInviteCode(ws.workspace_id);
+      setCurrentInviteCode(code);
+      setShowWorkspaceSwitcher(false);
+      setShowInviteCodeModal(true);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleDeleteHousehold = async () => {
+    if (!selectedHousehold) return;
+    setWorkspaceLoading(true);
+    try {
+      await deleteWorkspace(selectedHousehold.workspace_id);
+      setShowDeleteHouseholdModal(false);
+      setShowHouseholdDetailsModal(false);
+      setSelectedHousehold(null);
+    } catch (e) { console.error(e); }
+    setWorkspaceLoading(false);
+  };
+
   // List handlers
   const handleCreateList = async () => {
     if (!newListName.trim()) return;
