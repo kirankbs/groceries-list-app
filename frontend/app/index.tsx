@@ -432,7 +432,11 @@ export default function GroceryTodo() {
             <Text style={styles.listStatusText}>
               {currentList.status === 'completed' ? 'Completed' : currentList.status === 'in_progress' ? 'In Progress' : 'Active'}
             </Text>
-            {currentList.status !== 'completed' && (
+            {currentList.status === 'completed' ? (
+              <TouchableOpacity onPress={handleReopenList} style={styles.completeButton}>
+                <Text style={styles.completeButtonText}>Reopen List</Text>
+              </TouchableOpacity>
+            ) : (
               <TouchableOpacity onPress={handleCompleteList} style={styles.completeButton}>
                 <Text style={styles.completeButtonText}>Mark Complete</Text>
               </TouchableOpacity>
