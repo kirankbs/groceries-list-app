@@ -61,6 +61,13 @@ export default function GroceryTodo() {
   } = useAuth();
 
   const insets = useSafeAreaInsets();
+  
+  // On Android APK builds, useSafeAreaInsets returns 0 for top
+  // Use StatusBar.currentHeight as fallback for Android
+  const statusBarHeight = Platform.OS === 'android' 
+    ? (StatusBar.currentHeight || 24) 
+    : insets.top;
+  const topPadding = Math.max(statusBarHeight, insets.top);
 
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
