@@ -720,6 +720,16 @@ export default function GroceryTodo() {
                   ))}
                 </>
               )}
+                </>
+              ) : (
+                <View style={styles.emptyStateContainer}>
+                  <Ionicons name="alert-circle-outline" size={48} color={theme.textSecondary} />
+                  <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>Please select a household first</Text>
+                  <TouchableOpacity style={styles.emptyStateButton} onPress={() => { setShowListsModal(false); setShowWorkspaceSwitcher(true); }}>
+                    <Text style={styles.emptyStateButtonText}>Select Household</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
         </Modal>
