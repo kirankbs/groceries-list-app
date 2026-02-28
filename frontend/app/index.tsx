@@ -397,16 +397,16 @@ export default function GroceryTodo() {
         {/* Header */}
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            {/* Workspace Selector */}
+            {/* Household Selector */}
             <TouchableOpacity style={styles.workspaceSelector} onPress={() => setShowWorkspaceSwitcher(true)}>
               <Ionicons name={currentWorkspace?.type === 'personal' ? 'person' : 'people'} size={18} color="#4CAF50" />
               <Text style={[styles.workspaceName, { color: theme.text }]} numberOfLines={1}>
-                {currentWorkspace?.name || 'Select Workspace'}
+                {currentWorkspace?.name || 'Select Household'}
               </Text>
               <Ionicons name="chevron-down" size={18} color={theme.textSecondary} />
             </TouchableOpacity>
             {/* List Selector */}
-            <TouchableOpacity style={styles.listSelector} onPress={() => setShowListsModal(true)}>
+            <TouchableOpacity style={styles.listSelector} onPress={() => currentWorkspace && setShowListsModal(true)} disabled={!currentWorkspace}>
               <Text style={[styles.listName, { color: theme.textSecondary }]} numberOfLines={1}>
                 {currentList?.name || 'No list selected'} • {uncheckedCount} items
               </Text>
