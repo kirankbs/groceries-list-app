@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const fetchUserData = useCallback(async (token: string) => {
+  const fetchUserData = useCallback(async (token: string, shouldSelectWorkspace: boolean = false) => {
     try {
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/auth/me`, {
         headers: { 'Authorization': `Bearer ${token}` },
@@ -142,12 +142,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user);
         setWorkspaces(data.workspaces || []);
         
-        // Set personal workspace as default and fetch its lists
-        if (data.workspaces && data.workspaces.length > 0) {
+        // Set personal workspace as default and fetch its lists (only on initial load)
+        if (shouldSelectWorkspace && data.workspaces && data.workspaces.length > 0) {
           const personalWs = data.workspaces.find((w: Workspace) => w.type === 'personal');
           const wsToSelect = personalWs || data.workspaces[0];
           
-          if (wsToSelect && !currentWorkspace) {
+          if (wsToSelect) {
             setCurrentWorkspaceState(wsToSelect);
             
             // Fetch lists for this workspace immediately
@@ -188,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Error fetching user data:', error);
       return false;
     }
-  }, [clearToken, currentWorkspace]);
+  }, [clearToken]); // No currentWorkspace dependency - breaks circular dep chain
 
   const processSessionId = useCallback(async (sessionId: string) => {
     try {
