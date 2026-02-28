@@ -1,27 +1,30 @@
 # Grocery Todo App - Product Requirements Document (PRD)
 
-**Version:** 1.0  
+**Version:** 2.0  
 **Last Updated:** February 2026  
-**Platform:** Android (Expo React Native)  
-**Status:** MVP Complete
+**Platform:** Android, iOS (Expo React Native)  
+**Status:** Multi-Household Architecture Complete
 
 ---
 
 ## 1. Executive Summary
 
-Grocery Todo is a collaborative shopping list application that allows families and households to manage their grocery shopping together. The app features Google authentication, household sharing with invite codes, category organization, and a modern dark/light theme interface.
+Grocery Todo is a collaborative shopping list application that allows families and households to manage their grocery shopping together. The app features Google authentication, **multiple household support**, **multiple shopping lists per household**, category organization, and a modern dark/light theme interface.
 
 ### Target Users
 - Families managing shared grocery shopping
 - Couples coordinating household purchases
 - Roommates splitting shopping responsibilities
 - Individual users managing personal grocery lists
+- Users who belong to multiple households (e.g., own family + extended family)
 
 ### Key Value Propositions
-- Real-time shared grocery lists
-- Family/household collaboration
-- Category-based organization
-- Cross-platform accessibility (Android, iOS via Expo Go)
+- **Multiple Households:** Join and manage grocery lists for different groups
+- **Personal Lists:** Every user has a permanent personal space
+- **Shopping Sessions:** Multiple lists per household (weekly, party, etc.)
+- **Family Collaboration:** Real-time shared grocery lists
+- **Category-based Organization:** Customizable category system
+- **Cross-platform:** Android APK, iOS via Expo Go, Web preview
 
 ---
 
@@ -31,12 +34,13 @@ Grocery Todo is a collaborative shopping list application that allows families a
 **Feature:** Users authenticate using their Google account via Emergent Auth integration.
 
 **User Flow:**
-1. User opens app → Sees login screen
+1. User opens app → Sees login screen with feature highlights
 2. Taps "Continue with Google" button
 3. Redirected to Google OAuth consent screen
 4. After approval, redirected back to app
-5. Session token created and stored securely
-6. User lands on main grocery list screen
+5. **Personal household + default shopping list auto-created**
+6. Session token created and stored securely
+7. User lands on main grocery list screen with items ready to add
 
 **Technical Details:**
 - Auth Provider: Emergent Auth (https://auth.emergentagent.com/)
@@ -54,7 +58,7 @@ Grocery Todo is a collaborative shopping list application that allows families a
 | email | string | Google account email |
 | name | string | Display name from Google |
 | picture | string (URL) | Profile picture URL |
-| household_id | string | Associated household (nullable) |
+| personal_workspace_id | string | User's personal household ID |
 | created_at | datetime | Account creation timestamp |
 
 ### 2.3 Session Management
@@ -65,72 +69,147 @@ Grocery Todo is a collaborative shopping list application that allows families a
 
 ---
 
-## 3. Household/Family Sharing System
+## 3. Household System (Multi-Workspace Architecture)
 
-### 3.1 Household Creation
-**Feature:** Users can create a household to share grocery lists with family members.
+### 3.1 Personal Household (Auto-Created) ✅
+**Feature:** Every user automatically gets a personal household upon first login.
 
-**User Flow:**
-1. User taps profile icon → Profile modal opens
-2. Taps "Create or Join Household"
-3. Selects "Create New" tab
-4. Enters household name (e.g., "Smith Family")
-5. Taps "Create Household"
-6. Household created with auto-generated invite code
-7. Default categories initialized for the household
+**Characteristics:**
+- Created automatically on first sign-in
+- Named "[User Name]'s Personal List"
+- Contains a default "My Shopping List"
+- Cannot be deleted
+- Only the user has access (no sharing)
+- Re-created automatically if somehow missing
+
+### 3.2 Shared Households ✅
+**Feature:** Users can create multiple shared households for different groups.
+
+**Use Cases:**
+- "Smith Family" - for immediate family
+- "Roommates" - for apartment sharing
+- "Book Club Potluck" - for event planning
+- "Office Snacks" - for workplace
+
+**User Flow to Create:**
+1. Tap household name in header → Household switcher modal
+2. Tap "Create Household"
+3. Enter household name (e.g., "My Family")
+4. Household created with auto-generated invite code
+5. Default categories and shopping list initialized
 
 **Data Model:**
 | Field | Type | Description |
 |-------|------|-------------|
-| household_id | string | Unique identifier (UUID) |
+| workspace_id | string | Unique identifier (UUID) |
 | name | string | Household display name |
-| invite_code | string | 8-character invite code |
+| type | string | "personal" or "shared" |
+| invite_code | string | 8-character invite code (shared only) |
 | owner_id | string | User ID of household creator |
 | member_ids | array[string] | List of member user IDs |
 | created_at | datetime | Creation timestamp |
 
-### 3.2 Joining a Household
+### 3.3 Joining a Household ✅
 **Feature:** Users can join existing households using an invite code.
 
 **User Flow:**
 1. Household owner shares invite code with family member
-2. Family member logs into app
-3. Taps profile → "Create or Join Household"
-4. Selects "Join Existing" tab
-5. Enters invite code
-6. Taps "Join Household"
-7. Added to household member list
-8. Now sees shared grocery list
+2. Family member opens household switcher
+3. Taps "Join Household"
+4. Enters invite code
+5. Added to household member list
+6. Can now switch to and view shared grocery lists
 
 **Validation:**
 - Invite code must exist
-- User cannot be in another household (must leave first)
+- User can belong to **multiple households** (no limit)
 - Case-insensitive code matching
 
-### 3.3 Household Member Management
+### 3.4 Household Details & Management ✅
 **Features:**
-- View all household members with profile pictures
-- "Owner" badge displayed next to household creator
-- Members can view but not edit invite code
-- Owner can regenerate invite code
+- Share icon on each household in switcher → Quick access to invite code
+- Settings icon → Opens household details modal
+- View all members with profile pictures
+- "Owner" badge displayed next to creator
+- **Invite People** button for easy sharing
+- **Delete Household** (owner only)
+- **Leave Household** (non-owners)
 
-### 3.4 Leaving a Household
-**Scenarios:**
-1. **Non-owner leaves:** Simply removed from member list
-2. **Owner leaves with other members:** Ownership transfers to first remaining member
-3. **Last member leaves:** Household deleted, all associated data (groceries, categories) deleted
+### 3.5 Switching Between Households ✅
+**User Flow:**
+1. Tap household name in header
+2. Household switcher shows all households (personal + shared)
+3. Personal household marked with person icon
+4. Shared households marked with people icon + member count
+5. Tap any household to switch
+6. Shopping lists reload for selected household
 
-### 3.5 Data Isolation
-- Groceries are scoped to `household_id`
-- Categories are scoped to `household_id`
-- Users without household have `household_id: null` (personal list)
-- All queries filter by user's household_id
+### 3.6 Deleting a Household ✅
+**Rules:**
+- Personal household cannot be deleted
+- Only owner can delete shared households
+- Confirmation modal required
+- Deletes all shopping lists and items in that household
+- Members automatically removed
 
 ---
 
-## 4. Grocery List Management
+## 4. Shopping Lists (Multi-List Support)
 
-### 4.1 View Grocery Items
+### 4.1 List Overview ✅
+**Feature:** Each household can have multiple shopping lists.
+
+**Use Cases:**
+- "Weekly Groceries" - regular shopping
+- "Party Supplies" - event planning
+- "Costco Run" - bulk shopping
+- "Quick Stop" - convenience items
+
+### 4.2 List Status System ✅
+**Statuses:**
+| Status | Color | Description |
+|--------|-------|-------------|
+| Active | Blue (#2196F3) | New list, ready for items |
+| In Progress | Orange (#FF9800) | Some items checked |
+| Completed | Green (#4CAF50) | All items checked / manually marked |
+
+**Auto-Status Updates:**
+- List starts as "Active"
+- Becomes "In Progress" when first item is checked
+- Can be manually marked "Completed"
+- Completed lists can be **reopened** to Active status
+
+### 4.3 Creating a Shopping List ✅
+**User Flow:**
+1. Tap list name under household → Lists modal opens
+2. Tap "Create New List"
+3. Enter list name
+4. Choose creation method:
+   - **Blank:** Start fresh
+   - **From Template:** Copy from saved template
+   - **Copy List:** Duplicate existing list
+5. List created and selected
+
+### 4.4 List Actions ✅
+| Action | Trigger | Description |
+|--------|---------|-------------|
+| Select List | Tap in list modal | Switch to different list |
+| Mark Complete | "Mark Complete" button | Change status to completed |
+| Reopen List | "Reopen List" button | Change completed back to active |
+| Save as Template | (Coming soon) | Save list structure for reuse |
+| Delete List | (Coming soon) | Remove list and all items |
+
+### 4.5 Completed Lists History ✅
+- Completed lists appear in "Completed" section
+- Can view past shopping trips
+- Reopen any completed list to continue shopping
+- Helps track shopping patterns
+
+---
+
+## 5. Grocery Item Management
+
+### 5.1 View Grocery Items ✅
 **Features:**
 - Items grouped by category with section headers
 - Category icon and color displayed
@@ -143,10 +222,9 @@ Grocery Todo is a collaborative shopping list application that allows families a
 - Checkbox (tap to toggle)
 - Item name (strikethrough when checked)
 - Quantity badge (shown if > 1)
-- "Tap to edit" hint
 - Delete (trash) icon
 
-### 4.2 Add Grocery Item
+### 5.2 Add Grocery Item ✅
 **User Flow:**
 1. Tap green floating "+" button
 2. "Add Grocery Item" modal appears
@@ -154,52 +232,41 @@ Grocery Todo is a collaborative shopping list application that allows families a
 4. Set quantity using +/- buttons or direct input
 5. Select category from horizontal scrollable list
 6. Tap "Add to List"
-7. Item appears at top of relevant category section
+7. Item appears in relevant category section
 
 **Data Model:**
 | Field | Type | Description |
 |-------|------|-------------|
 | id | string | Unique identifier (UUID) |
+| list_id | string | Associated shopping list |
 | name | string | Item name |
 | quantity | integer | Number of items (default: 1) |
 | category | string | Category name |
 | checked | boolean | Completion status |
-| household_id | string | Associated household |
-| added_by | string | User ID who added item |
 | created_at | datetime | Creation timestamp |
 
-### 4.3 Edit Grocery Item
+### 5.3 Edit Grocery Item ✅
 **User Flow:**
 1. Tap on any item → "Edit Item" modal opens
 2. Modify name, quantity, or category
 3. Tap "Save Changes"
 4. Changes reflected immediately
 
-**Editable Fields:**
-- Item name
-- Quantity
-- Category
-
-### 4.4 Delete Grocery Item
+### 5.4 Delete Grocery Item ✅
 **Methods:**
 1. **From list:** Tap trash icon → Confirmation modal → "Delete"
 2. **From edit modal:** Tap "Delete Item" → Confirmation modal → "Delete"
 
-**Confirmation Modal:**
-- Trash icon in red circle
-- "Delete Item?" title
-- Confirmation message with item name
-- "Cancel" and "Delete" buttons
-
-### 4.5 Check/Uncheck Items
+### 5.5 Check/Uncheck Items ✅
 **Behavior:**
 - Tap checkbox to toggle checked status
 - Checked items show green checkmark
 - Checked items have strikethrough text
-- **Items remain in their category position** (do not move to bottom)
+- **Items remain in their category position** (do not move)
 - Unchecked count updates in header
+- Auto-updates list status (Active → In Progress)
 
-### 4.6 Search/Filter
+### 5.6 Search/Filter ✅
 **Features:**
 - Search bar at top of list
 - Real-time filtering as user types
@@ -209,10 +276,10 @@ Grocery Todo is a collaborative shopping list application that allows families a
 
 ---
 
-## 5. Category Management
+## 6. Category Management
 
-### 5.1 Default Categories
-The app includes 10 pre-configured categories:
+### 6.1 Default Categories ✅
+Each household gets 10 pre-configured categories:
 
 | Category | Color | Icon |
 |----------|-------|------|
@@ -227,41 +294,25 @@ The app includes 10 pre-configured categories:
 | Household | #607D8B (Gray-Blue) | home-outline |
 | Other | #9E9E9E (Gray) | ellipsis-horizontal-outline |
 
-### 5.2 Create Custom Category
-**User Flow:**
-1. Tap tags icon in header → "Manage Categories" modal
-2. Tap "Create New Category"
-3. "New Category" form appears
-4. Live preview shows category appearance
-5. Enter category name
-6. Select color from 15 color options
-7. Select icon from 27 icon options
-8. Tap "Create Category"
-
-**Customization Options:**
-- **Colors (15):** Green, Blue, Red, Orange, Purple, Pink, Cyan, Brown, Gray-Blue, Gray, Deep Orange, Deep Purple, Indigo, Teal, Light Green
-- **Icons (27):** pricetag, cart, basket, bag, leaf, water, restaurant, pizza, cafe, ice-cream, snow, cube, home, ellipsis, nutrition, fish, beer, wine, fast-food, flame, medical, fitness, sparkles, heart, star, gift, diamond
-
-### 5.3 Edit Category
-**Features:**
-- Tap pencil icon on any category
-- Modify name, color, or icon
-- Live preview updates
-- Save changes
-- **Automatic item migration:** If category name changes, all items in that category are updated
-
-### 5.4 Delete Category
-**Behavior:**
-- Tap trash icon on category (not available for "Other")
-- Confirmation modal appears
-- Upon deletion, all items in that category move to "Other"
-- Category removed from list
+### 6.2 Custom Categories ✅
+- Create categories with custom name, color, and icon
+- Edit existing categories
+- Delete categories (items move to "Other")
+- 15 color options, 27 icon options
 
 ---
 
-## 6. User Interface Features
+## 7. User Interface
 
-### 6.1 Theme System
+### 7.1 Safe Area Handling ✅
+**Feature:** Proper handling of device notches and status bars.
+
+- Uses `useSafeAreaInsets` hook for precise measurements
+- Header properly positioned below status bar/notch
+- FAB positioned above home indicator on gesture navigation devices
+- Works correctly on all Android and iOS devices
+
+### 7.2 Theme System ✅
 **Light Mode (Default):**
 - Background: #f8f9fa
 - Surface: #ffffff
@@ -276,57 +327,54 @@ The app includes 10 pre-configured categories:
 
 **Toggle:** Moon/sun icon in header
 
-### 6.2 Navigation Structure
+### 7.3 Navigation Structure ✅
 ```
 App
 ├── Login Screen (unauthenticated)
+│   ├── App logo and tagline
+│   ├── Feature highlights (Multiple households, Share with family, etc.)
 │   └── "Continue with Google" button
 │
 └── Main Screen (authenticated)
     ├── Header
-    │   ├── Household Name / "Grocery List"
-    │   ├── Item count
-    │   ├── Categories button (tags icon)
-    │   ├── Theme toggle (moon/sun icon)
-    │   └── Profile button (avatar)
+    │   ├── Household Selector (tap to switch)
+    │   ├── List Selector (tap to change lists)
+    │   ├── Categories button
+    │   ├── Theme toggle
+    │   └── Profile button
     │
-    ├── Household Banner (if no household)
+    ├── List Status Bar (Active/In Progress/Completed)
+    │   └── Mark Complete / Reopen List button
     │
     ├── Search Bar
     │
-    ├── Grocery List (SectionList)
-    │   └── Items grouped by category
+    ├── Grocery List (SectionList grouped by category)
     │
     └── FAB (Floating Action Button)
 ```
 
-### 6.3 Modals
+### 7.4 Modals ✅
 | Modal | Trigger | Purpose |
 |-------|---------|---------|
-| Add Item | FAB (+) button | Create new grocery item |
-| Edit Item | Tap on item | Modify existing item |
-| Delete Item | Trash icon / "Delete Item" | Confirm item deletion |
+| Household Switcher | Tap household name | Switch households, create/join |
+| Create Household | From switcher | Create new shared household |
+| Join Household | From switcher | Enter invite code |
+| Household Details | Settings icon | View members, invite, delete |
+| Delete Household | From details | Confirm deletion |
+| Shopping Lists | Tap list name | Switch lists, create new |
+| Create List | From lists modal | New list with options |
+| Add Item | FAB (+) | Create grocery item |
+| Edit Item | Tap item | Modify item |
+| Delete Item | Trash icon | Confirm deletion |
 | Manage Categories | Tags icon | View/manage categories |
-| Category Form | "Create New" / Pencil icon | Create/edit category |
-| Delete Category | Trash on category | Confirm category deletion |
-| Profile | Profile avatar | User info, household, logout |
-| Household | "Create/Join" button | Create or join household |
-| Invite Code | "Invite" button | Display shareable code |
-
-### 6.4 Empty States
-- **Empty list:** Cart icon + "Your grocery list is empty" + "Tap + to add items"
-- **No search results:** Cart icon + "No items found" + "Try a different search term"
-
-### 6.5 Loading States
-- Full-screen spinner during initial load
-- Button spinners during async operations
-- Disabled buttons during processing
+| Profile | Profile avatar | User info, logout |
+| Invite Code | Invite button | Display shareable code |
 
 ---
 
-## 7. Technical Architecture
+## 8. Technical Architecture
 
-### 7.1 Technology Stack
+### 8.1 Technology Stack
 | Component | Technology |
 |-----------|------------|
 | Frontend | Expo (React Native) |
@@ -334,11 +382,12 @@ App
 | Database | MongoDB |
 | Authentication | Emergent Auth (Google OAuth) |
 | Routing | expo-router (file-based) |
-| State Management | React useState/useCallback |
+| State Management | React Context + useState |
 | Secure Storage | expo-secure-store |
 | Icons | @expo/vector-icons (Ionicons) |
+| Safe Areas | react-native-safe-area-context |
 
-### 7.2 Project Structure
+### 8.2 Project Structure
 ```
 /app
 ├── /backend
@@ -348,190 +397,225 @@ App
 │
 ├── /frontend
 │   ├── /app
-│   │   ├── _layout.tsx   # Root layout with AuthProvider
+│   │   ├── _layout.tsx   # Root layout with providers
 │   │   └── index.tsx     # Main application screen
 │   │
 │   ├── /contexts
-│   │   └── AuthContext.tsx  # Authentication context
+│   │   └── AuthContext.tsx  # Auth + workspace state
 │   │
 │   ├── app.json          # Expo configuration
 │   ├── package.json      # Node dependencies
 │   └── .env              # Frontend environment
 │
-└── /tests
+└── /memory
+    └── PRD.md            # This document
 ```
 
-### 7.3 API Endpoints
+### 8.3 API Endpoints
 
 #### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | /api/auth/session | Exchange session_id for token |
-| GET | /api/auth/me | Get current user + household |
+| GET | /api/auth/me | Get user + workspaces (auto-creates personal if missing) |
 | POST | /api/auth/logout | Logout user |
 
-#### Households
+#### Workspaces (Households)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | /api/households | Create household |
-| POST | /api/households/join | Join with invite code |
-| POST | /api/households/leave | Leave household |
-| GET | /api/households/invite-code | Get invite code |
-| POST | /api/households/regenerate-code | Generate new code |
+| GET | /api/workspaces | List user's workspaces |
+| POST | /api/workspaces | Create shared workspace |
+| DELETE | /api/workspaces/{id} | Delete workspace (owner only) |
+| POST | /api/workspaces/join | Join with invite code |
+| POST | /api/workspaces/{id}/leave | Leave workspace |
+| GET | /api/workspaces/{id}/invite-code | Get invite code |
+| POST | /api/workspaces/{id}/regenerate-code | Generate new code |
+
+#### Shopping Lists
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/workspaces/{id}/lists | List shopping lists |
+| POST | /api/lists | Create shopping list |
+| PUT | /api/lists/{id} | Update list (name, status) |
+| DELETE | /api/lists/{id} | Delete list |
+| GET | /api/workspaces/{id}/templates | List templates |
+| POST | /api/lists/{id}/save-template | Save as template |
+
+#### Grocery Items
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/lists/{id}/items | List items in shopping list |
+| POST | /api/items | Create item |
+| PUT | /api/items/{id} | Update item |
+| DELETE | /api/items/{id} | Delete item |
 
 #### Categories
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | /api/categories | List categories |
+| GET | /api/workspaces/{id}/categories | List categories |
 | POST | /api/categories | Create category |
 | PUT | /api/categories/{id} | Update category |
 | DELETE | /api/categories/{id} | Delete category |
 
-#### Groceries
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /api/groceries | List grocery items |
-| POST | /api/groceries | Create item |
-| PUT | /api/groceries/{id} | Update item |
-| DELETE | /api/groceries/{id} | Delete item |
-
-### 7.4 Database Collections
+### 8.4 Database Collections
 ```
 MongoDB Database: test_database
 
 Collections:
 ├── users              # User accounts
 ├── user_sessions      # Active sessions
-├── households         # Household groups
-├── categories         # Category definitions
-└── groceries          # Grocery items
+├── workspaces         # Households (personal + shared)
+├── shopping_lists     # Shopping lists per workspace
+├── grocery_items      # Items per shopping list
+└── categories         # Categories per workspace
 ```
-
----
-
-## 8. Security Considerations
-
-### 8.1 Authentication
-- Google OAuth 2.0 via Emergent Auth
-- Session tokens stored securely
-- 7-day session expiration
-- HTTPS-only communication
-
-### 8.2 Authorization
-- All API endpoints validate session token
-- Data scoped to user's household
-- Users can only access their own data
-
-### 8.3 Data Privacy
-- No password storage (OAuth only)
-- Minimal data collection
-- User can delete account data by leaving household
 
 ---
 
 ## 9. Future Roadmap
 
-### Phase 2: Enhanced Collaboration
-- [ ] Push notifications for list updates
-- [ ] Item assignment (who should buy)
-- [ ] Real-time sync indicators
-- [ ] Activity log (who added/completed what)
+### Phase 3: Smart Shopping (High Impact) 🎯
+| Feature | Impact | Effort | Priority |
+|---------|--------|--------|----------|
+| **AI Item Suggestions** | High | Medium | P1 |
+| Auto-suggest items based on history | | | |
+| "You usually buy milk on Sundays" | | | |
+| **Voice Input** | High | Low | P1 |
+| "Add 2 gallons of milk" | | | |
+| Uses device speech recognition | | | |
+| **Barcode Scanner** | High | Medium | P2 |
+| Scan product barcodes to add items | | | |
+| Auto-fill name and category | | | |
+| **Smart Quantities** | Medium | Low | P2 |
+| "Low on eggs" reminders | | | |
+| Typical quantity suggestions | | | |
 
-### Phase 3: Smart Features
-- [ ] AI-powered item suggestions
-- [ ] Recurring items / favorites
-- [ ] Price tracking
-- [ ] Budget management
+### Phase 4: Enhanced Collaboration (High Impact) 🎯
+| Feature | Impact | Effort | Priority |
+|---------|--------|--------|----------|
+| **Real-time Sync Indicators** | High | Medium | P1 |
+| See when family member is shopping | | | |
+| "Dad is at the store" badge | | | |
+| **Push Notifications** | High | Medium | P1 |
+| "Mom added 5 items to the list" | | | |
+| "Weekly shopping list is ready" | | | |
+| **Item Assignment** | Medium | Low | P2 |
+| Assign items to specific members | | | |
+| "You pick up milk, I'll get bread" | | | |
+| **Activity Feed** | Medium | Medium | P2 |
+| See who added/completed what | | | |
+| Timeline of list changes | | | |
+| **Comments on Items** | Low | Low | P3 |
+| "Get the organic one" notes | | | |
 
-### Phase 4: Advanced Organization
-- [ ] Multiple lists (weekly, party, etc.)
-- [ ] List templates
-- [ ] Item notes/details
-- [ ] Barcode scanning
+### Phase 5: Budget & Pricing (Medium Impact)
+| Feature | Impact | Effort | Priority |
+|---------|--------|--------|----------|
+| **Price Tracking** | Medium | High | P2 |
+| Log prices when shopping | | | |
+| See price history per item | | | |
+| **Budget Mode** | Medium | Medium | P2 |
+| Set weekly/monthly budget | | | |
+| Running total as you add items | | | |
+| **Store Comparison** | Medium | High | P3 |
+| Compare prices across stores | | | |
+| "Milk is cheaper at Costco" | | | |
+| **Receipt Scanning** | Medium | High | P3 |
+| Scan receipts to log purchases | | | |
+| Auto-update price database | | | |
 
-### Phase 5: Social Features
-- [ ] Share lists with non-household members
-- [ ] Recipe integration
-- [ ] Store aisle mapping
-- [ ] Deals and coupons
+### Phase 6: Meal Planning Integration (Medium Impact)
+| Feature | Impact | Effort | Priority |
+|---------|--------|--------|----------|
+| **Recipe Import** | High | Medium | P2 |
+| Paste recipe URL → extract ingredients | | | |
+| Add all ingredients to list | | | |
+| **Meal Planner** | Medium | High | P3 |
+| Plan meals for the week | | | |
+| Auto-generate shopping list | | | |
+| **Nutrition Info** | Low | High | P4 |
+| Calorie/macro tracking | | | |
+| Dietary restriction flags | | | |
 
----
+### Phase 7: Store Experience (Lower Impact)
+| Feature | Impact | Effort | Priority |
+|---------|--------|--------|----------|
+| **Store Aisle Mapping** | Medium | High | P3 |
+| Sort items by store aisle | | | |
+| Efficient shopping route | | | |
+| **Store Deals Integration** | Medium | High | P3 |
+| Show current deals for items | | | |
+| "Milk is on sale at Target" | | | |
+| **Curbside Pickup Integration** | Medium | Very High | P4 |
+| Convert list to store order | | | |
+| Instacart/Walmart integration | | | |
 
-## 10. App Store Requirements
-
-### 10.1 Android (Google Play Store)
-**Required Permissions:**
-- Internet access
-- Secure storage
-
-**App Information:**
-- App Name: Grocery Todo
-- Category: Shopping / Productivity
-- Content Rating: Everyone
-- Privacy Policy: Required (data collection disclosure)
-
-### 10.2 iOS (App Store)
-**Info.plist Descriptions:**
-- Camera: Not required
-- Location: Not required
-- Contacts: Not required
-
-**App Store Connect:**
-- Age Rating: 4+
-- Privacy Nutrition Labels required
-
----
-
-## 11. Testing Checklist
-
-### Authentication
-- [ ] Google login flow works
-- [ ] Session persists across app restarts
-- [ ] Logout clears session
-- [ ] Expired sessions redirect to login
-
-### Household
-- [ ] Create household generates invite code
-- [ ] Join household with valid code works
-- [ ] Join with invalid code shows error
-- [ ] Leave household removes user
-- [ ] Owner transfer works when owner leaves
-- [ ] Last member leaving deletes household
-
-### Groceries
-- [ ] Add item with all fields
-- [ ] Edit item updates correctly
-- [ ] Delete item with confirmation
-- [ ] Check/uncheck toggles status
-- [ ] Search filters correctly
-- [ ] Items grouped by category
-
-### Categories
-- [ ] Default categories load
-- [ ] Create custom category
-- [ ] Edit category updates items
-- [ ] Delete category moves items to "Other"
-- [ ] Color and icon selection works
-
-### UI/UX
-- [ ] Dark mode toggle works
-- [ ] All modals open/close properly
-- [ ] Loading states display
-- [ ] Empty states display
-- [ ] Keyboard handling works
+### Phase 8: Social & Sharing (Lower Impact)
+| Feature | Impact | Effort | Priority |
+|---------|--------|--------|----------|
+| **Public List Sharing** | Low | Medium | P3 |
+| Share list via link (read-only) | | | |
+| No account needed to view | | | |
+| **Community Templates** | Low | Medium | P4 |
+| Browse popular list templates | | | |
+| "Thanksgiving dinner" template | | | |
 
 ---
 
-## 12. Version History
+## 10. Recommended Next Steps
+
+### Immediate (Next Sprint)
+1. **List Templates** - Save and reuse list structures
+2. **Delete Shopping List** - Currently missing from UI
+3. **Pull-to-Refresh** - Reload data with swipe gesture
+
+### Short-term (Next Month)
+1. **Voice Input** - Quick item addition via speech
+2. **Push Notifications** - List update alerts
+3. **Item Notes** - Add details to items
+
+### Medium-term (Next Quarter)
+1. **Real-time Sync** - See family member shopping status
+2. **AI Suggestions** - Smart item recommendations
+3. **Barcode Scanner** - Quick product addition
+
+---
+
+## 11. Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.0.0 | Feb 2026 | Multi-household architecture |
+| | | - Multiple households per user |
+| | | - Personal household auto-creation |
+| | | - Multiple shopping lists per household |
+| | | - List status (active/in-progress/completed) |
+| | | - Reopen completed lists |
+| | | - Household deletion |
+| | | - Invite people UI improvements |
+| | | - Mobile safe area fix |
+| | | - Renamed "Workspace" to "Household" |
 | 1.0.0 | Feb 2026 | Initial MVP release |
 | | | - Google authentication |
-| | | - Household sharing |
+| | | - Single household sharing |
 | | | - Grocery CRUD operations |
 | | | - Category management |
 | | | - Dark/light theme |
+
+---
+
+## 12. Known Limitations
+
+### Current Version (2.0)
+- No offline support (requires internet)
+- No push notifications yet
+- Cannot delete shopping lists from UI (only from backend)
+- Templates feature UI incomplete
+- No real-time sync between users
+
+### Technical Debt
+- TypeScript type for `item_count` not defined in ShoppingList interface
+- Some console warnings about deprecated APIs
 
 ---
 
@@ -552,18 +636,19 @@ EXPO_PACKAGER_HOSTNAME=<hostname>
 
 ---
 
-## Appendix B: Color Reference
+## Appendix B: Terminology
 
-### Brand Colors
-- Primary: #4CAF50 (Green)
-- Secondary: #2196F3 (Blue)
-- Danger: #ff6b6b (Red)
-- Warning: #FF9800 (Orange)
-
-### Category Colors
-See Section 5.1 for complete list.
+| Term | Definition |
+|------|------------|
+| Household | A group that shares grocery lists (was "Workspace") |
+| Personal Household | User's private space, auto-created |
+| Shared Household | Collaborative space with invite code |
+| Shopping List | A single grocery list within a household |
+| Shopping Session | Alternative name for shopping list |
+| Template | Reusable list structure |
 
 ---
 
-*Document maintained by Development Team*
+*Document maintained by Development Team*  
+*Last updated: February 2026*  
 *For questions or updates, contact the project lead*
