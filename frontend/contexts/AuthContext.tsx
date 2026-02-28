@@ -202,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await response.json();
         await storeToken(data.session_token);
         setUser(data.user);
-        await fetchUserData(data.session_token);
+        await fetchUserData(data.session_token, true);
       }
     } catch (error) {
       console.error('Error processing session ID:', error);
