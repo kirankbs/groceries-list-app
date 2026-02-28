@@ -56,7 +56,7 @@ await page.context.add_cookies([{
     "secure": True,
     "sameSite": "None"
 }])
-await page.goto("https://grocery-todo-2.preview.emergentagent.com")
+await page.goto("https://shop-multi-list.preview.emergentagent.com")
 ```
 
 ## Quick Debug
