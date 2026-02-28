@@ -60,6 +60,8 @@ export default function GroceryTodo() {
     createList, updateList, deleteList, saveAsTemplate
   } = useAuth();
 
+  const insets = useSafeAreaInsets();
+
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
