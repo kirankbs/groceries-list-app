@@ -954,7 +954,7 @@ export default function GroceryTodo() {
         </Modal>
 
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
