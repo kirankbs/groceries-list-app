@@ -12,60 +12,98 @@ interface User {
   email: string;
   name: string;
   picture?: string;
-  household_id?: string;
+  personal_workspace_id: string;
   created_at: string;
 }
 
-interface Household {
-  household_id: string;
+interface WorkspaceMember {
+  user_id: string;
   name: string;
-  invite_code: string;
+  email: string;
+  picture?: string;
+}
+
+interface Workspace {
+  workspace_id: string;
+  name: string;
+  type: 'personal' | 'shared';
+  invite_code?: string;
   owner_id: string;
   member_ids: string[];
-  members?: { user_id: string; name: string; email: string; picture?: string }[];
+  members?: WorkspaceMember[];
+  active_lists_count?: number;
+  completed_lists_count?: number;
   created_at: string;
+}
+
+interface ShoppingList {
+  list_id: string;
+  workspace_id: string;
+  name: string;
+  status: 'active' | 'in_progress' | 'completed';
+  is_template: boolean;
+  created_from_template_id?: string;
+  total_items?: number;
+  checked_items?: number;
+  created_at: string;
+  completed_at?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  household: Household | null;
+  workspaces: Workspace[];
+  currentWorkspace: Workspace | null;
+  currentList: ShoppingList | null;
+  lists: ShoppingList[];
+  templates: ShoppingList[];
   isLoading: boolean;
   isAuthenticated: boolean;
   sessionToken: string | null;
+  // Auth
   login: () => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  createHousehold: (name: string) => Promise<Household>;
-  joinHousehold: (inviteCode: string) => Promise<Household>;
-  leaveHousehold: () => Promise<void>;
-  getInviteCode: () => Promise<string>;
-  regenerateInviteCode: () => Promise<string>;
+  // Workspaces
+  setCurrentWorkspace: (workspace: Workspace) => void;
+  createWorkspace: (name: string) => Promise<Workspace>;
+  joinWorkspace: (inviteCode: string) => Promise<Workspace>;
+  leaveWorkspace: (workspaceId: string) => Promise<void>;
+  getInviteCode: (workspaceId: string) => Promise<string>;
+  regenerateInviteCode: (workspaceId: string) => Promise<string>;
+  fetchWorkspaces: () => Promise<void>;
+  // Lists
+  setCurrentList: (list: ShoppingList | null) => void;
+  fetchLists: () => Promise<void>;
+  fetchTemplates: () => Promise<void>;
+  createList: (name: string, copyFromListId?: string, fromTemplateId?: string) => Promise<ShoppingList>;
+  updateList: (listId: string, data: { name?: string; status?: string }) => Promise<ShoppingList>;
+  deleteList: (listId: string) => Promise<void>;
+  saveAsTemplate: (listId: string) => Promise<ShoppingList>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [household, setHousehold] = useState<Household | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace | null>(null);
+  const [currentList, setCurrentListState] = useState<ShoppingList | null>(null);
+  const [lists, setLists] = useState<ShoppingList[]>([]);
+  const [templates, setTemplates] = useState<ShoppingList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
 
-  // Get stored session token
   const getStoredToken = useCallback(async (): Promise<string | null> => {
     try {
       if (Platform.OS === 'web') {
-        // For web, try to get from localStorage
         return localStorage.getItem('session_token');
-      } else {
-        return await SecureStore.getItemAsync('session_token');
       }
-    } catch (error) {
-      console.error('Error getting stored token:', error);
+      return await SecureStore.getItemAsync('session_token');
+    } catch {
       return null;
     }
   }, []);
 
-  // Store session token
   const storeToken = useCallback(async (token: string) => {
     try {
       if (Platform.OS === 'web') {
@@ -79,7 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Clear session token
   const clearToken = useCallback(async () => {
     try {
       if (Platform.OS === 'web') {
@@ -93,52 +130,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Fetch user data
   const fetchUserData = useCallback(async (token: string) => {
     try {
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
 
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
-        setHousehold(data.household);
+        setWorkspaces(data.workspaces || []);
+        
+        // Set personal workspace as default
+        if (data.workspaces && data.workspaces.length > 0) {
+          const personalWs = data.workspaces.find((w: Workspace) => w.type === 'personal');
+          if (personalWs && !currentWorkspace) {
+            setCurrentWorkspaceState(personalWs);
+          }
+        }
         return true;
-      } else {
-        await clearToken();
-        return false;
       }
+      await clearToken();
+      return false;
     } catch (error) {
       console.error('Error fetching user data:', error);
       return false;
     }
-  }, [clearToken]);
+  }, [clearToken, currentWorkspace]);
 
-  // Process session ID from auth redirect
   const processSessionId = useCallback(async (sessionId: string) => {
     try {
       setIsLoading(true);
-      
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/auth/session`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-ID': sessionId,
-        },
+        headers: { 'Content-Type': 'application/json', 'X-Session-ID': sessionId },
       });
 
       if (response.ok) {
         const data = await response.json();
         await storeToken(data.session_token);
         setUser(data.user);
-        
-        // Fetch full user data including household
         await fetchUserData(data.session_token);
-      } else {
-        console.error('Session exchange failed');
       }
     } catch (error) {
       console.error('Error processing session ID:', error);
@@ -147,26 +179,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [storeToken, fetchUserData]);
 
-  // Check for existing session on mount
   useEffect(() => {
     const initAuth = async () => {
       setIsLoading(true);
 
-      // Check for session_id in URL (web only)
       if (Platform.OS === 'web') {
         const hash = window.location.hash;
         const params = new URLSearchParams(hash.replace('#', ''));
         const sessionId = params.get('session_id');
         
         if (sessionId) {
-          // Clear the hash from URL
           window.history.replaceState(null, '', window.location.pathname);
           await processSessionId(sessionId);
+          setIsLoading(false);
           return;
         }
       }
 
-      // Check for stored token
       const token = await getStoredToken();
       if (token) {
         const success = await fetchUserData(token);
@@ -181,7 +210,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, [getStoredToken, fetchUserData, processSessionId]);
 
-  // Handle deep link for mobile
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
@@ -189,38 +217,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const url = event.url;
       if (!url) return;
 
-      // Parse session_id from URL
       const hashIndex = url.indexOf('#');
       if (hashIndex !== -1) {
         const hash = url.substring(hashIndex + 1);
         const params = new URLSearchParams(hash);
         const sessionId = params.get('session_id');
-        
         if (sessionId) {
           await processSessionId(sessionId);
         }
       }
     };
 
-    // Check initial URL
     Linking.getInitialURL().then((url) => {
       if (url) handleDeepLink({ url });
     });
 
-    // Listen for URL changes
     const subscription = Linking.addEventListener('url', handleDeepLink);
-
-    return () => {
-      subscription.remove();
-    };
+    return () => subscription.remove();
   }, [processSessionId]);
 
-  // Login function
   const login = useCallback(async () => {
     try {
       setIsLoading(true);
-
-      // Determine redirect URL based on platform
       const redirectUrl = Platform.OS === 'web'
         ? window.location.origin + window.location.pathname
         : Linking.createURL('/');
@@ -228,19 +246,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authUrl = `${AUTH_URL}?redirect=${encodeURIComponent(redirectUrl)}`;
 
       if (Platform.OS === 'web') {
-        // For web, redirect to auth page
         window.location.href = authUrl;
       } else {
-        // For mobile, use WebBrowser
         const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
-        
         if (result.type === 'success' && result.url) {
           const hashIndex = result.url.indexOf('#');
           if (hashIndex !== -1) {
             const hash = result.url.substring(hashIndex + 1);
             const params = new URLSearchParams(hash);
             const sessionId = params.get('session_id');
-            
             if (sessionId) {
               await processSessionId(sessionId);
             }
@@ -254,106 +268,129 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [processSessionId]);
 
-  // Logout function
   const logout = useCallback(async () => {
     try {
       if (sessionToken) {
         await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/auth/logout`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${sessionToken}`,
-          },
+          headers: { 'Authorization': `Bearer ${sessionToken}` },
         });
       }
-    } catch (error) {
-      console.error('Logout error:', error);
     } finally {
       await clearToken();
       setUser(null);
-      setHousehold(null);
+      setWorkspaces([]);
+      setCurrentWorkspaceState(null);
+      setCurrentListState(null);
+      setLists([]);
+      setTemplates([]);
     }
   }, [sessionToken, clearToken]);
 
-  // Refresh user data
   const refreshUser = useCallback(async () => {
     if (sessionToken) {
       await fetchUserData(sessionToken);
     }
   }, [sessionToken, fetchUserData]);
 
-  // Create household
-  const createHousehold = useCallback(async (name: string): Promise<Household> => {
-    if (!sessionToken) throw new Error('Not authenticated');
+  // Workspace functions
+  const setCurrentWorkspace = useCallback((workspace: Workspace) => {
+    setCurrentWorkspaceState(workspace);
+    setCurrentListState(null);
+    setLists([]);
+    setTemplates([]);
+  }, []);
 
-    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/households`, {
+  const fetchWorkspaces = useCallback(async () => {
+    if (!sessionToken) return;
+    try {
+      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/workspaces`, {
+        headers: { 'Authorization': `Bearer ${sessionToken}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWorkspaces(data);
+        
+        // Update current workspace if it changed
+        if (currentWorkspace) {
+          const updated = data.find((w: Workspace) => w.workspace_id === currentWorkspace.workspace_id);
+          if (updated) {
+            setCurrentWorkspaceState(updated);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching workspaces:', error);
+    }
+  }, [sessionToken, currentWorkspace]);
+
+  const createWorkspace = useCallback(async (name: string): Promise<Workspace> => {
+    if (!sessionToken) throw new Error('Not authenticated');
+    
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/workspaces`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionToken}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
       body: JSON.stringify({ name }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Failed to create household');
+      throw new Error(error.detail || 'Failed to create workspace');
     }
 
-    const newHousehold = await response.json();
-    await refreshUser();
-    return newHousehold;
-  }, [sessionToken, refreshUser]);
+    const newWorkspace = await response.json();
+    await fetchWorkspaces();
+    return newWorkspace;
+  }, [sessionToken, fetchWorkspaces]);
 
-  // Join household
-  const joinHousehold = useCallback(async (inviteCode: string): Promise<Household> => {
+  const joinWorkspace = useCallback(async (inviteCode: string): Promise<Workspace> => {
     if (!sessionToken) throw new Error('Not authenticated');
 
-    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/households/join`, {
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/join`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionToken}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
       body: JSON.stringify({ invite_code: inviteCode }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Failed to join household');
+      throw new Error(error.detail || 'Failed to join workspace');
     }
 
-    const joinedHousehold = await response.json();
-    await refreshUser();
-    return joinedHousehold;
-  }, [sessionToken, refreshUser]);
+    const joinedWorkspace = await response.json();
+    await fetchWorkspaces();
+    return joinedWorkspace;
+  }, [sessionToken, fetchWorkspaces]);
 
-  // Leave household
-  const leaveHousehold = useCallback(async () => {
+  const leaveWorkspace = useCallback(async (workspaceId: string) => {
     if (!sessionToken) throw new Error('Not authenticated');
 
-    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/households/leave`, {
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${workspaceId}/leave`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${sessionToken}`,
-      },
+      headers: { 'Authorization': `Bearer ${sessionToken}` },
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Failed to leave household');
+      throw new Error(error.detail || 'Failed to leave workspace');
     }
 
-    await refreshUser();
-  }, [sessionToken, refreshUser]);
+    await fetchWorkspaces();
+    
+    // If left the current workspace, switch to personal
+    if (currentWorkspace?.workspace_id === workspaceId) {
+      const personalWs = workspaces.find(w => w.type === 'personal');
+      if (personalWs) {
+        setCurrentWorkspaceState(personalWs);
+      }
+    }
+  }, [sessionToken, fetchWorkspaces, currentWorkspace, workspaces]);
 
-  // Get invite code
-  const getInviteCode = useCallback(async (): Promise<string> => {
+  const getInviteCode = useCallback(async (workspaceId: string): Promise<string> => {
     if (!sessionToken) throw new Error('Not authenticated');
 
-    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/households/invite-code`, {
-      headers: {
-        'Authorization': `Bearer ${sessionToken}`,
-      },
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${workspaceId}/invite-code`, {
+      headers: { 'Authorization': `Bearer ${sessionToken}` },
     });
 
     if (!response.ok) {
@@ -365,15 +402,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data.invite_code;
   }, [sessionToken]);
 
-  // Regenerate invite code
-  const regenerateInviteCode = useCallback(async (): Promise<string> => {
+  const regenerateInviteCode = useCallback(async (workspaceId: string): Promise<string> => {
     if (!sessionToken) throw new Error('Not authenticated');
 
-    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/households/regenerate-code`, {
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${workspaceId}/regenerate-code`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${sessionToken}`,
-      },
+      headers: { 'Authorization': `Bearer ${sessionToken}` },
     });
 
     if (!response.ok) {
@@ -382,26 +416,182 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const data = await response.json();
-    await refreshUser();
+    await fetchWorkspaces();
     return data.invite_code;
-  }, [sessionToken, refreshUser]);
+  }, [sessionToken, fetchWorkspaces]);
+
+  // List functions
+  const setCurrentList = useCallback((list: ShoppingList | null) => {
+    setCurrentListState(list);
+  }, []);
+
+  const fetchLists = useCallback(async () => {
+    if (!sessionToken || !currentWorkspace) return;
+    
+    try {
+      const response = await fetch(
+        `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/lists`,
+        { headers: { 'Authorization': `Bearer ${sessionToken}` } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setLists(data);
+        
+        // Auto-select first active list if none selected
+        if (!currentList && data.length > 0) {
+          const activeList = data.find((l: ShoppingList) => l.status !== 'completed');
+          if (activeList) {
+            setCurrentListState(activeList);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching lists:', error);
+    }
+  }, [sessionToken, currentWorkspace, currentList]);
+
+  const fetchTemplates = useCallback(async () => {
+    if (!sessionToken || !currentWorkspace) return;
+    
+    try {
+      const response = await fetch(
+        `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/templates`,
+        { headers: { 'Authorization': `Bearer ${sessionToken}` } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setTemplates(data);
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  }, [sessionToken, currentWorkspace]);
+
+  const createList = useCallback(async (
+    name: string, 
+    copyFromListId?: string, 
+    fromTemplateId?: string
+  ): Promise<ShoppingList> => {
+    if (!sessionToken || !currentWorkspace) throw new Error('Not authenticated');
+
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/lists`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
+      body: JSON.stringify({
+        name,
+        workspace_id: currentWorkspace.workspace_id,
+        copy_from_list_id: copyFromListId,
+        from_template_id: fromTemplateId,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to create list');
+    }
+
+    const newList = await response.json();
+    await fetchLists();
+    return newList;
+  }, [sessionToken, currentWorkspace, fetchLists]);
+
+  const updateList = useCallback(async (
+    listId: string, 
+    data: { name?: string; status?: string }
+  ): Promise<ShoppingList> => {
+    if (!sessionToken) throw new Error('Not authenticated');
+
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/lists/${listId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to update list');
+    }
+
+    const updatedList = await response.json();
+    await fetchLists();
+    return updatedList;
+  }, [sessionToken, fetchLists]);
+
+  const deleteList = useCallback(async (listId: string) => {
+    if (!sessionToken) throw new Error('Not authenticated');
+
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/lists/${listId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${sessionToken}` },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to delete list');
+    }
+
+    await fetchLists();
+    
+    if (currentList?.list_id === listId) {
+      setCurrentListState(null);
+    }
+  }, [sessionToken, fetchLists, currentList]);
+
+  const saveAsTemplate = useCallback(async (listId: string): Promise<ShoppingList> => {
+    if (!sessionToken) throw new Error('Not authenticated');
+
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/lists/${listId}/save-as-template`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${sessionToken}` },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to save as template');
+    }
+
+    const template = await response.json();
+    await fetchTemplates();
+    return template;
+  }, [sessionToken, fetchTemplates]);
+
+  // Fetch lists when workspace changes
+  useEffect(() => {
+    if (currentWorkspace && sessionToken) {
+      fetchLists();
+      fetchTemplates();
+    }
+  }, [currentWorkspace, sessionToken, fetchLists, fetchTemplates]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        household,
+        workspaces,
+        currentWorkspace,
+        currentList,
+        lists,
+        templates,
         isLoading,
         isAuthenticated: !!user,
         sessionToken,
         login,
         logout,
         refreshUser,
-        createHousehold,
-        joinHousehold,
-        leaveHousehold,
+        setCurrentWorkspace,
+        createWorkspace,
+        joinWorkspace,
+        leaveWorkspace,
         getInviteCode,
         regenerateInviteCode,
+        fetchWorkspaces,
+        setCurrentList,
+        fetchLists,
+        fetchTemplates,
+        createList,
+        updateList,
+        deleteList,
+        saveAsTemplate,
       }}
     >
       {children}
