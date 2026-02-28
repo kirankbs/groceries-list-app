@@ -401,8 +401,8 @@ export default function GroceryTodo() {
 
   // Main app
   return (
-    <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: insets.top }]}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+    <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: topPadding }]}>
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {/* Header */}
         <View style={styles.header}>
