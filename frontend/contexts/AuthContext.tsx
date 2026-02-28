@@ -650,14 +650,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return template;
   }, [sessionToken, fetchTemplates]);
 
-  // Fetch lists when workspace changes
-  useEffect(() => {
-    if (currentWorkspace && sessionToken) {
-      fetchLists();
-      fetchTemplates();
-    }
-  }, [currentWorkspace, sessionToken, fetchLists, fetchTemplates]);
-
   return (
     <AuthContext.Provider
       value={{
