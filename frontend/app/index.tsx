@@ -92,6 +92,9 @@ export default function GroceryTodo() {
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [showInviteCodeModal, setShowInviteCodeModal] = useState(false);
   const [currentInviteCode, setCurrentInviteCode] = useState('');
+  const [showHouseholdDetailsModal, setShowHouseholdDetailsModal] = useState(false);
+  const [selectedHousehold, setSelectedHousehold] = useState<typeof currentWorkspace>(null);
+  const [showDeleteHouseholdModal, setShowDeleteHouseholdModal] = useState(false);
 
   // List modals
   const [showListsModal, setShowListsModal] = useState(false);
