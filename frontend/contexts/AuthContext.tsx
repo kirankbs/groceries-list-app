@@ -295,12 +295,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [sessionToken, fetchUserData]);
 
   // Workspace functions
-  const setCurrentWorkspace = useCallback((workspace: Workspace) => {
+  const setCurrentWorkspace = useCallback(async (workspace: Workspace) => {
     setCurrentWorkspaceState(workspace);
     setCurrentListState(null);
     setLists([]);
     setTemplates([]);
-  }, []);
+    
+    // Immediately fetch lists for the new workspace
+    if (sessionToken && workspace) {
+      try {
+        // Fetch lists
+        const listsResponse = await fetch(
+          `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${workspace.workspace_id}/lists`,
+          { headers: { 'Authorization': `Bearer ${sessionToken}` } }
+        );
+        if (listsResponse.ok) {
+          const listsData = await listsResponse.json();
+          setLists(listsData);
+          
+          // Auto-select first active list
+          if (listsData.length > 0) {
+            const activeList = listsData.find((l: ShoppingList) => l.status !== 'completed');
+            setCurrentListState(activeList || listsData[0]);
+          }
+        }
+        
+        // Fetch templates
+        const templatesResponse = await fetch(
+          `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${workspace.workspace_id}/templates`,
+          { headers: { 'Authorization': `Bearer ${sessionToken}` } }
+        );
+        if (templatesResponse.ok) {
+          const templatesData = await templatesResponse.json();
+          setTemplates(templatesData);
+        }
+      } catch (error) {
+        console.error('Error fetching workspace data:', error);
+      }
+    }
+  }, [sessionToken]);
 
   const fetchWorkspaces = useCallback(async () => {
     if (!sessionToken) return;
