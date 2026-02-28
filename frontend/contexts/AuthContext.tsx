@@ -63,11 +63,12 @@ interface AuthContextType {
   login: () => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  // Workspaces
+  // Workspaces (now called Households in UI)
   setCurrentWorkspace: (workspace: Workspace) => void;
   createWorkspace: (name: string) => Promise<Workspace>;
   joinWorkspace: (inviteCode: string) => Promise<Workspace>;
   leaveWorkspace: (workspaceId: string) => Promise<void>;
+  deleteWorkspace: (workspaceId: string) => Promise<void>;
   getInviteCode: (workspaceId: string) => Promise<string>;
   regenerateInviteCode: (workspaceId: string) => Promise<string>;
   fetchWorkspaces: () => Promise<void>;
