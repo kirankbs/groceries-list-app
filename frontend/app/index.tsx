@@ -505,7 +505,7 @@ export default function GroceryTodo() {
 
         {/* FAB */}
         {currentList && (
-          <TouchableOpacity style={styles.fab} onPress={() => setShowAddItemModal(true)}>
+          <TouchableOpacity style={[styles.fab, { bottom: Math.max(insets.bottom, 16) + 8 }]} onPress={() => setShowAddItemModal(true)}>
             <Ionicons name="add" size={32} color="#fff" />
           </TouchableOpacity>
         )}
