@@ -571,25 +571,92 @@ export default function GroceryTodo() {
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Household Name</Text>
               <TextInput style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]} placeholder="e.g., My Family, Roommates..." placeholderTextColor={theme.textSecondary} value={workspaceName} onChangeText={setWorkspaceName} />
               <TouchableOpacity style={[styles.primaryButton, (!workspaceName.trim() || workspaceLoading) && styles.buttonDisabled]} onPress={handleCreateWorkspace} disabled={!workspaceName.trim() || workspaceLoading}>
-                {workspaceLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Create Workspace</Text>}
+                {workspaceLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Create Household</Text>}
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
 
-        {/* Join Workspace Modal */}
+        {/* Join Household Modal */}
         <Modal visible={showJoinWorkspaceModal} animationType="slide" transparent onRequestClose={() => setShowJoinWorkspaceModal(false)}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Join Workspace</Text>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Join Household</Text>
                 <TouchableOpacity onPress={() => setShowJoinWorkspaceModal(false)}><Ionicons name="close" size={24} color={theme.text} /></TouchableOpacity>
               </View>
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Invite Code</Text>
               <TextInput style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]} placeholder="Enter invite code" placeholderTextColor={theme.textSecondary} value={inviteCodeInput} onChangeText={setInviteCodeInput} autoCapitalize="none" />
               <TouchableOpacity style={[styles.primaryButton, (!inviteCodeInput.trim() || workspaceLoading) && styles.buttonDisabled]} onPress={handleJoinWorkspace} disabled={!inviteCodeInput.trim() || workspaceLoading}>
-                {workspaceLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Join Workspace</Text>}
+                {workspaceLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Join Household</Text>}
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Household Details Modal */}
+        <Modal visible={showHouseholdDetailsModal} animationType="slide" transparent onRequestClose={() => setShowHouseholdDetailsModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Household Settings</Text>
+                <TouchableOpacity onPress={() => setShowHouseholdDetailsModal(false)}><Ionicons name="close" size={24} color={theme.text} /></TouchableOpacity>
+              </View>
+              {selectedHousehold && (
+                <>
+                  <View style={[styles.householdInfoCard, { backgroundColor: theme.inputBg }]}>
+                    <Ionicons name="people" size={32} color="#4CAF50" />
+                    <Text style={[styles.householdInfoName, { color: theme.text }]}>{selectedHousehold.name}</Text>
+                    <Text style={[styles.householdInfoMeta, { color: theme.textSecondary }]}>{selectedHousehold.members?.length || 1} members</Text>
+                  </View>
+                  
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginTop: 16 }]}>Members</Text>
+                  {selectedHousehold.members?.map(m => (
+                    <View key={m.user_id} style={styles.memberRow}>
+                      {m.picture ? <Image source={{ uri: m.picture }} style={styles.memberAvatar} /> : <Ionicons name="person-circle" size={32} color={theme.textSecondary} />}
+                      <Text style={[styles.memberName, { color: theme.text }]}>{m.name}</Text>
+                      {m.user_id === selectedHousehold.owner_id && <View style={styles.ownerBadge}><Text style={styles.ownerBadgeText}>Owner</Text></View>}
+                    </View>
+                  ))}
+
+                  <View style={styles.householdActions}>
+                    <TouchableOpacity style={[styles.householdActionBtn, { backgroundColor: '#4CAF5015' }]} onPress={() => { setShowHouseholdDetailsModal(false); handleShowHouseholdInvite(selectedHousehold); }}>
+                      <Ionicons name="share-outline" size={20} color="#4CAF50" />
+                      <Text style={[styles.householdActionBtnText, { color: '#4CAF50' }]}>Invite People</Text>
+                    </TouchableOpacity>
+                    {selectedHousehold.owner_id === user?.user_id ? (
+                      <TouchableOpacity style={[styles.householdActionBtn, { backgroundColor: '#ff6b6b15' }]} onPress={() => setShowDeleteHouseholdModal(true)}>
+                        <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
+                        <Text style={[styles.householdActionBtnText, { color: '#ff6b6b' }]}>Delete Household</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity style={[styles.householdActionBtn, { backgroundColor: '#ff6b6b15' }]} onPress={() => { leaveWorkspace(selectedHousehold.workspace_id); setShowHouseholdDetailsModal(false); }}>
+                        <Ionicons name="exit-outline" size={20} color="#ff6b6b" />
+                        <Text style={[styles.householdActionBtnText, { color: '#ff6b6b' }]}>Leave Household</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Delete Household Confirmation Modal */}
+        <Modal visible={showDeleteHouseholdModal} animationType="fade" transparent onRequestClose={() => setShowDeleteHouseholdModal(false)}>
+          <View style={styles.deleteModalOverlay}>
+            <View style={[styles.deleteModalContent, { backgroundColor: theme.surface }]}>
+              <View style={styles.deleteModalIcon}><Ionicons name="trash" size={40} color="#ff6b6b" /></View>
+              <Text style={[styles.deleteModalTitle, { color: theme.text }]}>Delete Household?</Text>
+              <Text style={[styles.deleteModalMsg, { color: theme.textSecondary }]}>This will permanently delete "{selectedHousehold?.name}" and all its shopping lists.</Text>
+              <View style={styles.deleteModalButtons}>
+                <TouchableOpacity style={[styles.deleteModalBtn, { backgroundColor: theme.inputBg }]} onPress={() => setShowDeleteHouseholdModal(false)}>
+                  <Text style={[styles.deleteModalBtnText, { color: theme.text }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.deleteModalBtn, { backgroundColor: '#ff6b6b' }]} onPress={handleDeleteHousehold} disabled={workspaceLoading}>
+                  {workspaceLoading ? <ActivityIndicator color="#fff" /> : <Text style={[styles.deleteModalBtnText, { color: '#fff' }]}>Delete</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
