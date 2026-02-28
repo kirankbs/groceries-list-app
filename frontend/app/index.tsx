@@ -1080,4 +1080,13 @@ const styles = StyleSheet.create({
   householdActions: { marginTop: 20, gap: 12 },
   householdActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8 },
   householdActionBtnText: { fontSize: 16, fontWeight: '600' },
+  emptyStateContainer: { alignItems: 'center', paddingVertical: 32 },
+  emptyStateText: { fontSize: 16, marginTop: 12, textAlign: 'center' },
+  emptyStateButton: { backgroundColor: '#4CAF50', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8, marginTop: 16 },
+  emptyStateButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  memberAvatar: { width: 32, height: 32, borderRadius: 16 },
+  memberName: { flex: 1, fontSize: 15 },
+  ownerBadge: { backgroundColor: '#4CAF5020', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
+  ownerBadgeText: { fontSize: 11, color: '#4CAF50', fontWeight: '600' },
 });
