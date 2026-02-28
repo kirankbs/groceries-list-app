@@ -670,25 +670,27 @@ export default function GroceryTodo() {
                 <TouchableOpacity onPress={() => setShowListsModal(false)}><Ionicons name="close" size={24} color={theme.text} /></TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.createListButton} onPress={() => { setShowListsModal(false); setShowCreateListModal(true); }}>
-                <Ionicons name="add-circle-outline" size={24} color="#4CAF50" />
-                <Text style={styles.createListButtonText}>Create New List</Text>
-              </TouchableOpacity>
-
-              {activeLists.length > 0 && (
+              {currentWorkspace ? (
                 <>
-                  <Text style={[styles.listSectionTitle, { color: theme.text }]}>Active Lists</Text>
-                  {activeLists.map(list => (
-                    <TouchableOpacity key={list.list_id} style={[styles.listItem, { backgroundColor: currentList?.list_id === list.list_id ? '#4CAF5020' : 'transparent' }]} onPress={() => { setCurrentList(list); setShowListsModal(false); }}>
-                      <View style={[styles.listStatusDot, { backgroundColor: list.status === 'in_progress' ? '#FF9800' : '#2196F3' }]} />
-                      <View style={styles.listItemInfo}>
-                        <Text style={[styles.listItemName, { color: theme.text }]}>{list.name}</Text>
-                        <Text style={[styles.listItemMeta, { color: theme.textSecondary }]}>{list.checked_items || 0}/{list.total_items || 0} items</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
+                  <TouchableOpacity style={styles.createListButton} onPress={() => { setShowListsModal(false); setShowCreateListModal(true); }}>
+                    <Ionicons name="add-circle-outline" size={24} color="#4CAF50" />
+                    <Text style={styles.createListButtonText}>Create New List</Text>
+                  </TouchableOpacity>
+
+                  {activeLists.length > 0 && (
+                    <>
+                      <Text style={[styles.listSectionTitle, { color: theme.text }]}>Active Lists</Text>
+                      {activeLists.map(list => (
+                        <TouchableOpacity key={list.list_id} style={[styles.listItem, { backgroundColor: currentList?.list_id === list.list_id ? '#4CAF5020' : 'transparent' }]} onPress={() => { setCurrentList(list); setShowListsModal(false); }}>
+                          <View style={[styles.listStatusDot, { backgroundColor: list.status === 'in_progress' ? '#FF9800' : '#2196F3' }]} />
+                          <View style={styles.listItemInfo}>
+                            <Text style={[styles.listItemName, { color: theme.text }]}>{list.name}</Text>
+                            <Text style={[styles.listItemMeta, { color: theme.textSecondary }]}>{list.checked_items || 0}/{list.total_items || 0} items</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  )}
 
               {completedLists.length > 0 && (
                 <>
