@@ -142,11 +142,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user);
         setWorkspaces(data.workspaces || []);
         
-        // Set personal workspace as default
+        // Set personal workspace as default and fetch its lists
         if (data.workspaces && data.workspaces.length > 0) {
           const personalWs = data.workspaces.find((w: Workspace) => w.type === 'personal');
-          if (personalWs && !currentWorkspace) {
-            setCurrentWorkspaceState(personalWs);
+          const wsToSelect = personalWs || data.workspaces[0];
+          
+          if (wsToSelect && !currentWorkspace) {
+            setCurrentWorkspaceState(wsToSelect);
+            
+            // Fetch lists for this workspace immediately
+            try {
+              const listsResponse = await fetch(
+                `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${wsToSelect.workspace_id}/lists`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+              );
+              if (listsResponse.ok) {
+                const listsData = await listsResponse.json();
+                setLists(listsData);
+                
+                // Auto-select first active list
+                if (listsData.length > 0) {
+                  const activeList = listsData.find((l: ShoppingList) => l.status !== 'completed');
+                  setCurrentListState(activeList || listsData[0]);
+                }
+              }
+              
+              // Fetch templates
+              const templatesResponse = await fetch(
+                `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${wsToSelect.workspace_id}/templates`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+              );
+              if (templatesResponse.ok) {
+                setTemplates(await templatesResponse.json());
+              }
+            } catch (err) {
+              console.error('Error fetching initial lists:', err);
+            }
           }
         }
         return true;
