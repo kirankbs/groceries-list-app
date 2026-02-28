@@ -286,7 +286,18 @@ export default function GroceryTodo() {
   const handleCompleteList = async () => {
     if (!currentList) return;
     try {
-      await updateList(currentList.list_id, { status: 'completed' });
+      const updated = await updateList(currentList.list_id, { status: 'completed' });
+      // Update currentList immediately for visual feedback
+      setCurrentList(updated);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleReopenList = async () => {
+    if (!currentList) return;
+    try {
+      const updated = await updateList(currentList.list_id, { status: 'active' });
+      // Update currentList immediately for visual feedback
+      setCurrentList(updated);
     } catch (e) { console.error(e); }
   };
 
