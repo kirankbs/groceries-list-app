@@ -33,6 +33,7 @@ interface Workspace {
   members?: WorkspaceMember[];
   active_lists_count?: number;
   completed_lists_count?: number;
+  currency?: string;
   created_at: string;
 }
 
