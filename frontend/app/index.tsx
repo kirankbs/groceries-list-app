@@ -390,28 +390,34 @@ export default function GroceryTodo() {
         if (!res.ok) { const err = await res.json(); setCategoryError(err.detail || 'Failed to create'); return; }
       }
       await fetchCategories();
-      setShowCategoryFormModal(false);
       setEditingCategory(null);
+      setCategoryView('list');
     } catch { setCategoryError('Network error. Try again.'); }
     finally { setSavingCategory(false); }
   };
 
-  const deleteCategoryHandler = async () => {
-    if (!categoryToDelete) return;
-    setDeletingCategory(true);
-    try {
-      const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories/${categoryToDelete.id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${sessionToken}` },
-      });
-      if (res.ok) {
-        await fetchCategories();
-        await fetchItems();
-        setShowDeleteCategoryModal(false);
-        setCategoryToDelete(null);
-      }
-    } catch (e) { console.error(e); }
-    finally { setDeletingCategory(false); }
+  const confirmDeleteCategory = (cat: Category) => {
+    Alert.alert(
+      'Delete Category?',
+      `"${cat.name}" will be deleted. All items in this category will be moved to Other.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            setDeletingCategory(true);
+            try {
+              const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories/${cat.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${sessionToken}` },
+              });
+              if (res.ok) { await fetchCategories(); await fetchItems(); }
+            } catch (e) { console.error(e); }
+            finally { setDeletingCategory(false); }
+          },
+        },
+      ]
+    );
   };
 
   // Grouped items
