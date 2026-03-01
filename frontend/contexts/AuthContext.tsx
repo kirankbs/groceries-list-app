@@ -74,6 +74,7 @@ interface AuthContextType {
   getInviteCode: (workspaceId: string) => Promise<string>;
   regenerateInviteCode: (workspaceId: string) => Promise<string>;
   fetchWorkspaces: () => Promise<void>;
+  updateWorkspaceCurrency: (workspaceId: string, currency: string) => Promise<void>;
   // Lists
   setCurrentList: (list: ShoppingList | null) => void;
   fetchLists: () => Promise<void>;
