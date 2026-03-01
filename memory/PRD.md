@@ -1,9 +1,9 @@
 # Grocery Todo App - Product Requirements Document (PRD)
 
-**Version:** 2.3  
+**Version:** 2.4  
 **Last Updated:** March 2026  
 **Platform:** Android, iOS (Expo React Native)  
-**Status:** Refactored (Modular Components) + Delete Shopping List + All Core Features Working
+**Status:** Refactored (Modular Components) + Delete Shopping List + Receipt Scanning (Phase 1+2) + All Core Features Working
 
 ---
 
