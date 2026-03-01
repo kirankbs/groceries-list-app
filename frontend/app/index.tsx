@@ -77,6 +77,12 @@ export default function GroceryTodo() {
   const [showCreateListModal, setShowCreateListModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showReceiptScanModal, setShowReceiptScanModal] = useState(false);
+
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    EUR: '€', USD: '$', GBP: '£', CHF: 'Fr.', AUD: 'A$', CAD: 'C$',
+  };
+  const currencySymbol = CURRENCY_SYMBOLS[currentWorkspace?.currency || 'EUR'] || '€';
 
   const theme: Theme = useMemo(() => ({
     background: darkMode ? '#121212' : '#f8f9fa',
