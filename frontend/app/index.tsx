@@ -1018,175 +1018,159 @@ export default function GroceryTodo() {
           </View>
         </Modal>
 
-        {/* Category Management Modal */}
-        <Modal visible={showCategoryModal} animationType="slide" transparent onRequestClose={() => setShowCategoryModal(false)}>
+        {/* ===== SINGLE CATEGORY MODAL (list view + form view) - avoids Android multi-modal bug ===== */}
+        <Modal
+          visible={showCategoryModal}
+          animationType="slide"
+          transparent
+          onRequestClose={() => {
+            if (categoryView === 'form') {
+              setCategoryView('list');
+            } else {
+              setShowCategoryModal(false);
+            }
+          }}
+        >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Manage Categories</Text>
-                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                  <TouchableOpacity
-                    style={[styles.addCategoryBtn, { backgroundColor: '#4CAF5015' }]}
-                    onPress={() => openCategoryForm(null)}
-                    data-testid="add-category-btn"
-                  >
-                    <Ionicons name="add" size={18} color="#4CAF50" />
-                    <Text style={{ color: '#4CAF50', fontWeight: '600', fontSize: 13 }}>Add</Text>
+            {/* LIST VIEW */}
+            {categoryView === 'list' && (
+              <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: theme.text }]}>Manage Categories</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                    <TouchableOpacity
+                      style={[styles.addCategoryBtn, { backgroundColor: '#4CAF5015' }]}
+                      onPress={() => openCategoryForm(null)}
+                      data-testid="add-category-btn"
+                    >
+                      <Ionicons name="add" size={18} color="#4CAF50" />
+                      <Text style={{ color: '#4CAF50', fontWeight: '600', fontSize: 13 }}>Add</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setShowCategoryModal(false)} data-testid="close-category-modal">
+                      <Ionicons name="close" size={24} color={theme.text} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <FlatList
+                  data={categories}
+                  keyExtractor={c => c.id}
+                  renderItem={({ item: cat }) => (
+                    <View style={[styles.categoryListItem, { backgroundColor: theme.inputBg }]}>
+                      <View style={[styles.categoryListIcon, { backgroundColor: cat.color + '25' }]}>
+                        <Ionicons name={cat.icon as any} size={20} color={cat.color} />
+                      </View>
+                      <Text style={[styles.categoryListName, { color: theme.text, flex: 1 }]}>{cat.name}</Text>
+                      {cat.name !== 'Other' && (
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <TouchableOpacity
+                            style={[styles.catActionBtn, { backgroundColor: '#2196F318' }]}
+                            onPress={() => openCategoryForm(cat)}
+                            data-testid={`edit-cat-btn-${cat.id}`}
+                          >
+                            <Ionicons name="pencil-outline" size={15} color="#2196F3" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.catActionBtn, { backgroundColor: '#FF634718' }]}
+                            onPress={() => confirmDeleteCategory(cat)}
+                            data-testid={`delete-cat-btn-${cat.id}`}
+                          >
+                            {deletingCategory
+                              ? <ActivityIndicator size={14} color="#FF6347" />
+                              : <Ionicons name="trash-outline" size={15} color="#FF6347" />
+                            }
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                  ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                />
+              </View>
+            )}
+
+            {/* FORM VIEW (create / edit) — same modal, no nesting */}
+            {categoryView === 'form' && (
+              <View style={[styles.modalContent, { backgroundColor: theme.surface, height: '90%' }]}>
+                <View style={styles.modalHeader}>
+                  <TouchableOpacity onPress={() => setCategoryView('list')} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="chevron-back" size={20} color={theme.text} />
+                    <Text style={[styles.modalTitle, { color: theme.text }]}>{editingCategory ? 'Edit Category' : 'New Category'}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setShowCategoryModal(false)} data-testid="close-category-modal">
+                  <TouchableOpacity onPress={() => setShowCategoryModal(false)} data-testid="close-cat-form">
                     <Ionicons name="close" size={24} color={theme.text} />
                   </TouchableOpacity>
                 </View>
-              </View>
-              <FlatList
-                data={categories}
-                keyExtractor={c => c.id}
-                renderItem={({ item: cat }) => (
-                  <View style={[styles.categoryListItem, { backgroundColor: theme.inputBg }]}>
-                    <View style={[styles.categoryListIcon, { backgroundColor: cat.color + '25' }]}>
-                      <Ionicons name={cat.icon as any} size={20} color={cat.color} />
+
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
+                  {/* Live Preview */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: theme.inputBg, marginBottom: 16 }}>
+                    <View style={[styles.categoryListIcon, { backgroundColor: categoryColor + '25', width: 44, height: 44, borderRadius: 11 }]}>
+                      <Ionicons name={categoryIcon as any} size={24} color={categoryColor} />
                     </View>
-                    <Text style={[styles.categoryListName, { color: theme.text, flex: 1 }]}>{cat.name}</Text>
-                    {cat.name !== 'Other' && (
-                      <View style={{ flexDirection: 'row', gap: 6 }}>
-                        <TouchableOpacity
-                          style={[styles.catActionBtn, { backgroundColor: '#2196F318' }]}
-                          onPress={() => openCategoryForm(cat)}
-                          data-testid={`edit-cat-btn-${cat.id}`}
-                        >
-                          <Ionicons name="pencil-outline" size={15} color="#2196F3" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.catActionBtn, { backgroundColor: '#FF634718' }]}
-                          onPress={() => { setCategoryToDelete(cat); setShowDeleteCategoryModal(true); }}
-                          data-testid={`delete-cat-btn-${cat.id}`}
-                        >
-                          <Ionicons name="trash-outline" size={15} color="#FF6347" />
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: categoryName ? theme.text : theme.textSecondary }}>
+                      {categoryName || 'Category Preview'}
+                    </Text>
                   </View>
-                )}
-                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-              />
-            </View>
-          </View>
-        </Modal>
 
-        {/* Category Form Modal (Create / Edit) */}
-        <Modal visible={showCategoryFormModal} animationType="slide" transparent onRequestClose={() => setShowCategoryFormModal(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: theme.surface, height: '85%' }]}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>{editingCategory ? 'Edit Category' : 'New Category'}</Text>
-                <TouchableOpacity onPress={() => setShowCategoryFormModal(false)} data-testid="close-cat-form">
-                  <Ionicons name="close" size={24} color={theme.text} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
-                {/* Preview */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: theme.inputBg, marginBottom: 16 }}>
-                  <View style={[styles.categoryListIcon, { backgroundColor: categoryColor + '25', width: 44, height: 44, borderRadius: 11 }]}>
-                    <Ionicons name={categoryIcon as any} size={24} color={categoryColor} />
+                  {/* Name */}
+                  <Text style={[styles.catFormLabel, { color: theme.textSecondary }]}>Category Name</Text>
+                  <TextInput
+                    style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]}
+                    placeholder="e.g. Vegetables, Electronics..."
+                    placeholderTextColor={theme.textSecondary}
+                    value={categoryName}
+                    onChangeText={t => { setCategoryName(t); setCategoryError(''); }}
+                    autoFocus
+                    data-testid="category-name-input"
+                  />
+                  {!!categoryError && <Text style={styles.catErrorText}>{categoryError}</Text>}
+
+                  {/* Color Picker */}
+                  <Text style={[styles.catFormLabel, { color: theme.textSecondary }]}>Color</Text>
+                  <View style={styles.colorPickerRow}>
+                    {AVAILABLE_COLORS.map(color => (
+                      <TouchableOpacity
+                        key={color}
+                        style={[styles.colorCircle, { backgroundColor: color }, categoryColor === color && styles.colorCircleSelected]}
+                        onPress={() => setCategoryColor(color)}
+                      />
+                    ))}
                   </View>
-                  <Text style={[{ fontSize: 16, fontWeight: '600' }, { color: categoryName ? theme.text : theme.textSecondary }]}>
-                    {categoryName || 'Category Preview'}
-                  </Text>
-                </View>
 
-                {/* Name */}
-                <Text style={[styles.catFormLabel, { color: theme.textSecondary }]}>Category Name</Text>
-                <TextInput
-                  style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]}
-                  placeholder="e.g. Vegetables, Electronics..."
-                  placeholderTextColor={theme.textSecondary}
-                  value={categoryName}
-                  onChangeText={t => { setCategoryName(t); setCategoryError(''); }}
-                  autoFocus
-                  data-testid="category-name-input"
-                />
-                {!!categoryError && <Text style={styles.catErrorText}>{categoryError}</Text>}
+                  {/* Icon Picker */}
+                  <Text style={[styles.catFormLabel, { color: theme.textSecondary }]}>Icon</Text>
+                  <View style={styles.iconPickerGrid}>
+                    {AVAILABLE_ICONS.map(icon => (
+                      <TouchableOpacity
+                        key={icon}
+                        style={[
+                          styles.iconCell,
+                          { backgroundColor: categoryIcon === icon ? categoryColor + '25' : theme.inputBg },
+                          categoryIcon === icon && { borderWidth: 2, borderColor: categoryColor },
+                        ]}
+                        onPress={() => setCategoryIcon(icon)}
+                      >
+                        <Ionicons name={icon as any} size={22} color={categoryIcon === icon ? categoryColor : theme.textSecondary} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <View style={{ height: 8 }} />
+                </ScrollView>
 
-                {/* Color Picker */}
-                <Text style={[styles.catFormLabel, { color: theme.textSecondary }]}>Color</Text>
-                <View style={styles.colorPickerRow}>
-                  {AVAILABLE_COLORS.map(color => (
-                    <TouchableOpacity
-                      key={color}
-                      style={[styles.colorCircle, { backgroundColor: color }, categoryColor === color && styles.colorCircleSelected]}
-                      onPress={() => setCategoryColor(color)}
-                    />
-                  ))}
-                </View>
-
-                {/* Icon Picker */}
-                <Text style={[styles.catFormLabel, { color: theme.textSecondary }]}>Icon</Text>
-                <View style={styles.iconPickerGrid}>
-                  {AVAILABLE_ICONS.map(icon => (
-                    <TouchableOpacity
-                      key={icon}
-                      style={[
-                        styles.iconCell,
-                        { backgroundColor: categoryIcon === icon ? categoryColor + '25' : theme.inputBg },
-                        categoryIcon === icon && { borderWidth: 2, borderColor: categoryColor },
-                      ]}
-                      onPress={() => setCategoryIcon(icon)}
-                    >
-                      <Ionicons name={icon as any} size={22} color={categoryIcon === icon ? categoryColor : theme.textSecondary} />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View style={{ height: 8 }} />
-              </ScrollView>
-
-              {/* Sticky Save Button */}
-              <TouchableOpacity
-                style={[styles.primaryButton, { marginTop: 12 }, (savingCategory || !categoryName.trim()) && styles.buttonDisabled]}
-                onPress={saveCategoryHandler}
-                disabled={savingCategory || !categoryName.trim()}
-                data-testid="save-category-btn"
-              >
-                {savingCategory
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={styles.primaryButtonText}>{editingCategory ? 'Save Changes' : 'Create Category'}</Text>
-                }
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Delete Category Confirmation */}
-        <Modal visible={showDeleteCategoryModal} animationType="fade" transparent onRequestClose={() => setShowDeleteCategoryModal(false)}>
-          <View style={styles.deleteModalOverlay}>
-            <View style={[styles.deleteModalContent, { backgroundColor: theme.surface }]}>
-              <View style={styles.deleteModalIcon}>
-                <Ionicons name="trash-outline" size={28} color="#FF6347" />
-              </View>
-              <Text style={[styles.deleteModalTitle, { color: theme.text }]}>Delete Category?</Text>
-              <Text style={[styles.deleteModalMsg, { color: theme.textSecondary }]}>
-                "{categoryToDelete?.name}" will be deleted.{'\n'}All items in this category will be moved to <Text style={{ fontWeight: '700', color: theme.text }}>Other</Text>.
-              </Text>
-              <View style={styles.deleteModalButtons}>
+                {/* Sticky Save Button — outside ScrollView so always visible */}
                 <TouchableOpacity
-                  style={[styles.deleteModalBtn, { backgroundColor: theme.inputBg }]}
-                  onPress={() => { setShowDeleteCategoryModal(false); setCategoryToDelete(null); }}
-                  data-testid="cancel-delete-category"
+                  style={[styles.primaryButton, { marginTop: 12 }, (savingCategory || !categoryName.trim()) && styles.buttonDisabled]}
+                  onPress={saveCategoryHandler}
+                  disabled={savingCategory || !categoryName.trim()}
+                  data-testid="save-category-btn"
                 >
-                  <Text style={[styles.deleteModalBtnText, { color: theme.text }]}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.deleteModalBtn, { backgroundColor: '#FF6347' }, deletingCategory && styles.buttonDisabled]}
-                  onPress={deleteCategoryHandler}
-                  disabled={deletingCategory}
-                  data-testid="confirm-delete-category-btn"
-                >
-                  {deletingCategory
+                  {savingCategory
                     ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={[styles.deleteModalBtnText, { color: '#fff' }]}>Delete</Text>
+                    : <Text style={styles.primaryButtonText}>{editingCategory ? 'Save Changes' : 'Create Category'}</Text>
                   }
                 </TouchableOpacity>
               </View>
-            </View>
+            )}
           </View>
         </Modal>
 
