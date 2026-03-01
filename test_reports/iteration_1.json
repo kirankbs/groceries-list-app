@@ -106,7 +106,7 @@
 
   "rca_of_issue": {
     "root_cause": "Metro bundler transform cache (295MB) was serving a stale compiled version of index.tsx. The lazy=true bundle parameter caused Metro to serve the cached (old) bundle instead of recompiling from the updated source file.",
-    "reproduction": "Before fix: accessing https://list-organizer-demo.preview.emergentagent.com showed category modal with only 'Categories' title, no Add button, no edit/delete buttons per category. The bundle served via lazy=true did not contain 'Manage Categories', 'addCategoryBtn', or 'pencil-outline'.",
+    "reproduction": "Before fix: accessing https://list-refactor-stage.preview.emergentagent.com showed category modal with only 'Categories' title, no Add button, no edit/delete buttons per category. The bundle served via lazy=true did not contain 'Manage Categories', 'addCategoryBtn', or 'pencil-outline'.",
     "fix": "Cleared /app/frontend/.metro-cache/cache directory and restarted Expo server. The new bundle now contains all new code.",
     "prevention": "If code changes don't appear in the browser, clear Metro cache: rm -rf /app/frontend/.metro-cache/cache && sudo supervisorctl restart expo"
   }

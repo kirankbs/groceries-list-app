@@ -56,7 +56,7 @@ await page.context.add_cookies([{
     "secure": True,
     "sameSite": "None"
 }])
-await page.goto("https://list-organizer-demo.preview.emergentagent.com")
+await page.goto("https://list-refactor-stage.preview.emergentagent.com")
 ```
 
 ## Quick Debug
