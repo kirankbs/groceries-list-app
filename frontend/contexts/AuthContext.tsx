@@ -489,6 +489,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data.invite_code;
   }, [sessionToken, fetchWorkspaces]);
 
+  const updateWorkspaceCurrency = useCallback(async (workspaceId: string, currency: string) => {
+    if (!sessionToken) throw new Error('Not authenticated');
+
+    const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${workspaceId}/currency`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
+      body: JSON.stringify({ currency }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to update currency');
+    }
+
+    await fetchWorkspaces();
+  }, [sessionToken, fetchWorkspaces]);
+
   const deleteWorkspace = useCallback(async (workspaceId: string) => {
     if (!sessionToken) throw new Error('Not authenticated');
 
