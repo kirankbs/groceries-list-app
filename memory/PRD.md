@@ -595,7 +595,11 @@ Collections:
 | | | - Invite people UI improvements |
 | | | - Mobile safe area fix |
 | | | - Renamed "Workspace" to "Household" |
-| 2.1.0 | Mar 2026 | Bug fixes + Category Management CRUD |
+| 2.2.0 | Feb 2026 | Native verification + PRD cleanup |
+| | | - **VERIFIED on native APK:** Category Management CRUD fully working |
+| | | - **VERIFIED on native APK:** Item delete (trash icon) working correctly |
+| | | - Environment separation documented (preview vs. production backends) |
+| 2.1.0 | Feb 2026 | Bug fixes + Category Management CRUD |
 | | | - **FIXED:** Household switching state bug on native mobile (circular useEffect dependency) |
 | | | - **FEATURE:** Full category CRUD (Create/Edit/Delete) |
 | | | - Category form with name, color picker (15 colors), icon picker (41 icons) |
@@ -604,7 +608,7 @@ Collections:
 | | | - Duplicate name validation (case-insensitive) |
 | | | - "Other" category protected from deletion |
 | | | - Live preview in category form |
-| | | - Sticky save button always visible |
+| | | - Single-modal architecture (fixes Android modal-stacking limitation) |
 | 1.0.0 | Feb 2026 | Initial MVP release |
 | | | - Google authentication |
 | | | - Single household sharing |
