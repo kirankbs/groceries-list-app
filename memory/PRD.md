@@ -640,17 +640,16 @@ Collections:
 
 ## 12. Known Limitations
 
-### Current Version (2.2)
+### Current Version (2.5)
 - No offline support (requires internet)
 - No push notifications yet
-- Cannot delete shopping lists from UI (only from backend)
-- No real-time sync between users
+- No real-time sync between users (polling only)
 - Two separate environments (preview dev vs. production APK) have separate databases — expected behaviour
+- Receipt scanning takes ~40-60s (AI processing time); user must keep app open while polling
 
 ### Technical Debt
-- `frontend/app/index.tsx` is ~1500 lines and needs to be split into smaller components (`CategoryModal`, `ItemRow`, `ListsModal`, etc.)
-- TypeScript type for `item_count` not defined in ShoppingList interface
 - `shadow*` style props deprecated in Expo web (should migrate to `boxShadow`)
+- No receipt history UI (data stored in DB but not surfaced in app)
 
 ---
 
