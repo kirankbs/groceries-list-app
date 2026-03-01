@@ -393,6 +393,11 @@ export default function GroceryTodo() {
                       </View>
                     )}
                   </TouchableOpacity>
+                  {item.price != null && (
+                    <Text style={[styles.itemPrice, { color: theme.textSecondary }]} testID={`price-${item.id}`}>
+                      {currencySymbol}{item.price.toFixed(2)}
+                    </Text>
+                  )}
                   <TouchableOpacity
                     style={styles.deleteButton}
                     onPress={() => { setItemToDelete(item); setShowDeleteModal(true); }}
