@@ -105,6 +105,8 @@ class GroceryItem(BaseModel):
     category: str = "Other"
     checked: bool = False
     added_by: Optional[str] = None
+    price: Optional[float] = None
+    price_updated_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class GroceryItemCreate(BaseModel):
