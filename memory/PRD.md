@@ -565,9 +565,9 @@ Collections:
 ## 10. Recommended Next Steps
 
 ### Immediate (Next Sprint)
-1. **List Templates** - Save and reuse list structures
-2. **Delete Shopping List** - Currently missing from UI
-3. **Pull-to-Refresh** - Reload data with swipe gesture
+1. **Delete Shopping List** - Currently missing from UI (backend supports it)
+2. **Pull-to-Refresh** - Reload data with swipe gesture
+3. **List Templates** - Save and reuse list structures
 
 ### Short-term (Next Month)
 1. **Voice Input** - Quick item addition via speech
