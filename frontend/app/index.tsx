@@ -1078,7 +1078,7 @@ export default function GroceryTodo() {
                   <Ionicons name="close" size={24} color={theme.text} />
                 </TouchableOpacity>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
                 {/* Preview */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: theme.inputBg, marginBottom: 16 }}>
                   <View style={[styles.categoryListIcon, { backgroundColor: categoryColor + '25', width: 44, height: 44, borderRadius: 11 }]}>
@@ -1131,19 +1131,21 @@ export default function GroceryTodo() {
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <TouchableOpacity
-                  style={[styles.primaryButton, { marginTop: 20, marginBottom: 8 }, (savingCategory || !categoryName.trim()) && styles.buttonDisabled]}
-                  onPress={saveCategoryHandler}
-                  disabled={savingCategory || !categoryName.trim()}
-                  data-testid="save-category-btn"
-                >
-                  {savingCategory
-                    ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={styles.primaryButtonText}>{editingCategory ? 'Save Changes' : 'Create Category'}</Text>
-                  }
-                </TouchableOpacity>
+                <View style={{ height: 8 }} />
               </ScrollView>
+
+              {/* Sticky Save Button */}
+              <TouchableOpacity
+                style={[styles.primaryButton, { marginTop: 12 }, (savingCategory || !categoryName.trim()) && styles.buttonDisabled]}
+                onPress={saveCategoryHandler}
+                disabled={savingCategory || !categoryName.trim()}
+                data-testid="save-category-btn"
+              >
+                {savingCategory
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.primaryButtonText}>{editingCategory ? 'Save Changes' : 'Create Category'}</Text>
+                }
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
