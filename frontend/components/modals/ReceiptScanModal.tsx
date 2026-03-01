@@ -177,7 +177,9 @@ export function ReceiptScanModal({ visible, theme, listId, onClose, onPricesSave
       setError(e.message || 'Could not read receipt. Please try a clearer photo.');
       setStep('picker');
     }
-  }; = async () => {
+  };
+
+  const handleConfirm = async () => {
     if (!receiptResult) return;
     setStep('confirming');
     try {
