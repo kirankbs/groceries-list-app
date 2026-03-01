@@ -129,6 +129,19 @@ class SessionDataResponse(BaseModel):
     session_token: str
 
 
+class WorkspaceCurrencyUpdate(BaseModel):
+    currency: str
+
+
+class ReceiptConfirmItem(BaseModel):
+    item_id: str
+    price: float
+
+
+class ReceiptConfirmInput(BaseModel):
+    confirmed_items: List[ReceiptConfirmItem]
+
+
 # Default categories
 DEFAULT_CATEGORIES = [
     {"name": "Produce", "color": "#4CAF50", "icon": "leaf-outline", "is_default": True},
