@@ -56,7 +56,7 @@ await page.context.add_cookies([{
     "secure": True,
     "sameSite": "None"
 }])
-await page.goto("https://mobile-state-sync.preview.emergentagent.com")
+await page.goto("https://modal-android-fix.preview.emergentagent.com")
 ```
 
 ## Quick Debug
