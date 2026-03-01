@@ -409,6 +409,19 @@ export default function GroceryTodo() {
               )}
               ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
               contentContainerStyle={styles.listContent}
+              ListFooterComponent={() => {
+                const pricedItems = items.filter(i => i.price != null);
+                if (pricedItems.length === 0) return null;
+                const total = pricedItems.reduce((sum, i) => sum + (i.price || 0), 0);
+                return (
+                  <View style={[styles.totalSpentFooter, { backgroundColor: theme.surface }]} testID="total-spent-footer">
+                    <Text style={[styles.totalSpentLabel, { color: theme.textSecondary }]}>Total spent</Text>
+                    <Text style={[styles.totalSpentValue, { color: '#4CAF50' }]} testID="total-spent-value">
+                      {currencySymbol}{total.toFixed(2)}
+                    </Text>
+                  </View>
+                );
+              }}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons name="cart-outline" size={64} color={theme.textSecondary} />
