@@ -180,6 +180,7 @@ async def create_personal_workspace(user_id: str, user_name: str) -> str:
         "invite_code": None,
         "owner_id": user_id,
         "member_ids": [user_id],
+        "currency": "EUR",
         "created_at": datetime.now(timezone.utc)
     }
     await db.workspaces.insert_one(workspace)
