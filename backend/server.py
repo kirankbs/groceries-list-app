@@ -48,6 +48,7 @@ class Workspace(BaseModel):
     invite_code: Optional[str] = None  # Only for shared workspaces
     owner_id: str
     member_ids: List[str] = []
+    currency: str = "EUR"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class WorkspaceCreate(BaseModel):
