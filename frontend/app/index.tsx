@@ -23,16 +23,33 @@ import { useAuth } from '../contexts/AuthContext';
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 const AVAILABLE_ICONS = [
-  'pricetag-outline', 'cart-outline', 'basket-outline', 'bag-outline',
-  'leaf-outline', 'water-outline', 'restaurant-outline', 'pizza-outline',
-  'cafe-outline', 'ice-cream-outline', 'snow-outline', 'cube-outline',
-  'home-outline', 'ellipsis-horizontal-outline', 'nutrition-outline',
-  'fish-outline', 'beer-outline', 'wine-outline', 'fast-food-outline',
+  // Shopping
+  'cart-outline', 'basket-outline', 'bag-outline', 'bag-handle-outline', 'pricetag-outline',
+  // Food & beverages
+  'restaurant-outline', 'pizza-outline', 'cafe-outline', 'fast-food-outline', 'ice-cream-outline',
+  'fish-outline', 'beer-outline', 'wine-outline', 'nutrition-outline', 'flame-outline',
+  // Fresh produce (vegetables, fruits)
+  'leaf-outline', 'flower-outline', 'sunny-outline', 'water-outline',
+  // Pantry (cereals, lentils, nuts, dry goods)
+  'grid-outline', 'ellipse-outline', 'aperture-outline', 'snow-outline', 'cube-outline',
+  // Health & pharmacy (medicine, bandages)
+  'medical-outline', 'bandage-outline',
+  // Household & cleaning supplies
+  'sparkles-outline', 'home-outline', 'construct-outline',
+  // Clothes & personal care
+  'shirt-outline', 'body-outline',
+  // Baby products
+  'happy-outline',
+  // Electronics
+  'phone-portrait-outline', 'hardware-chip-outline', 'laptop-outline',
+  // Pets, school, general
+  'paw-outline', 'book-outline', 'ellipsis-horizontal-outline',
 ];
 
 const AVAILABLE_COLORS = [
   '#4CAF50', '#2196F3', '#F44336', '#FF9800', '#9C27B0',
   '#E91E63', '#00BCD4', '#795548', '#607D8B', '#9E9E9E',
+  '#FF5722', '#FFC107', '#009688', '#3F51B5', '#8BC34A',
 ];
 
 interface Category {
