@@ -693,6 +693,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getInviteCode,
         regenerateInviteCode,
         fetchWorkspaces,
+        updateWorkspaceCurrency,
         setCurrentList,
         fetchLists,
         fetchTemplates,
