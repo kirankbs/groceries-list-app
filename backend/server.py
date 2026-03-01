@@ -558,7 +558,8 @@ async def create_workspace(input: WorkspaceCreate, request: Request):
         type="shared",
         invite_code=secrets.token_urlsafe(6),
         owner_id=user.user_id,
-        member_ids=[user.user_id]
+        member_ids=[user.user_id],
+        currency="EUR"
     )
     
     await db.workspaces.insert_one(workspace.dict())
