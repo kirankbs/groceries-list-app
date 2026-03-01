@@ -164,29 +164,20 @@ export function ReceiptScanModal({ visible, theme, listId, onClose, onPricesSave
       );
 
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.detail || 'Failed to process receipt');
+        const err = await response.json().catch(() => ({}));
+        throw new Error((err as any).detail || 'Failed to upload receipt');
       }
 
-      const data: ReceiptResult = await response.json();
+      const { receipt_id } = await response.json();
 
-      if (!data.matched_items || data.matched_items.length === 0) {
-        setError('No matching items found. Make sure items on the receipt are in your list.');
-        setStep('picker');
-        return;
-      }
+      // Poll until completed / failed (background processing avoids proxy timeout)
+      await pollForResult(receipt_id);
 
-      // Initialise editable prices from matched items
-      const prices: Record<string, string> = {};
-      data.matched_items.forEach(item => {
-        prices[item.item_id] = item.price.toFixed(2);
-      });
-
-      setReceiptResult(data);
-      setEditedPrices(prices);
-      setStep('review');
-
-  const handleConfirm = async () => {
+    } catch (e: any) {
+      setError(e.message || 'Could not read receipt. Please try a clearer photo.');
+      setStep('picker');
+    }
+  }; = async () => {
     if (!receiptResult) return;
     setStep('confirming');
     try {
