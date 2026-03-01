@@ -71,28 +71,42 @@ export function CategoryModal({ visible, theme, categories, onCategoriesChanged,
   };
 
   const handleDelete = (cat: Category) => {
-    Alert.alert(
-      'Delete Category?',
-      `"${cat.name}" will be deleted. All items in this category will be moved to Other.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories/${cat.id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${sessionToken}` },
-              });
-              if (res.ok) { await onCategoriesChanged(); await onItemsChanged(); }
-            } catch (e) { console.error(e); }
-            finally { setDeleting(false); }
+    const message = `"${cat.name}" will be deleted. All items in this category will be moved to Other.`;
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete Category?\n${message}`)) {
+        setDeleting(true);
+        fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories/${cat.id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${sessionToken}` },
+        })
+          .then(res => { if (res.ok) { onCategoriesChanged(); onItemsChanged(); } })
+          .catch(console.error)
+          .finally(() => setDeleting(false));
+      }
+    } else {
+      Alert.alert(
+        'Delete Category?',
+        message,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              setDeleting(true);
+              try {
+                const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories/${cat.id}`, {
+                  method: 'DELETE',
+                  headers: { 'Authorization': `Bearer ${sessionToken}` },
+                });
+                if (res.ok) { await onCategoriesChanged(); await onItemsChanged(); }
+              } catch (e) { console.error(e); }
+              finally { setDeleting(false); }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleRequestClose = () => {
