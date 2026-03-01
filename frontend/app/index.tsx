@@ -140,9 +140,13 @@ export default function GroceryTodo() {
   const [showCategoryFormModal, setShowCategoryFormModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState('');
-  const [categoryColor, setCategoryColor] = useState('#4CAF50');
-  const [categoryIcon, setCategoryIcon] = useState('pricetag-outline');
+  const [categoryColor, setCategoryColor] = useState(AVAILABLE_COLORS[0]);
+  const [categoryIcon, setCategoryIcon] = useState(AVAILABLE_ICONS[0]);
   const [savingCategory, setSavingCategory] = useState(false);
+  const [categoryError, setCategoryError] = useState('');
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState(false);
 
   const theme = useMemo(() => ({
     background: darkMode ? '#121212' : '#f8f9fa',
