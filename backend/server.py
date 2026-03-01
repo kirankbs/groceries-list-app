@@ -1034,6 +1034,171 @@ async def root():
     return {"message": "Grocery Todo API v2.0 - Multi-Workspace Support"}
 
 
+# ==================== WORKSPACE CURRENCY ROUTE ====================
+
+@api_router.put("/workspaces/{workspace_id}/currency")
+async def update_workspace_currency(workspace_id: str, input: WorkspaceCurrencyUpdate, request: Request):
+    """Update the currency for a workspace"""
+    user = await require_auth(request)
+    await verify_workspace_access(user, workspace_id)
+
+    valid_currencies = ["EUR", "USD", "GBP", "CHF", "AUD", "CAD"]
+    if input.currency not in valid_currencies:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid currency. Must be one of: {', '.join(valid_currencies)}"
+        )
+
+    await db.workspaces.update_one(
+        {"workspace_id": workspace_id},
+        {"$set": {"currency": input.currency}}
+    )
+    updated = await db.workspaces.find_one({"workspace_id": workspace_id}, {"_id": 0})
+    return updated
+
+
+# ==================== RECEIPT ROUTES ====================
+
+@api_router.post("/lists/{list_id}/upload-receipt")
+async def upload_receipt(list_id: str, request: Request, image: UploadFile = File(...)):
+    """Upload and AI-process a receipt for a shopping list"""
+    user = await require_auth(request)
+    shopping_list = await verify_list_access(user, list_id)
+
+    # Validate file type
+    content_type = image.content_type or ""
+    allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+    if content_type not in allowed:
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload JPEG, PNG, or WEBP.")
+
+    # Get workspace currency
+    workspace = await db.workspaces.find_one(
+        {"workspace_id": shopping_list["workspace_id"]}, {"_id": 0}
+    )
+    workspace_currency = workspace.get("currency", "EUR") if workspace else "EUR"
+
+    # Read and base64-encode image
+    image_bytes = await image.read()
+    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+    mime_type = "image/jpeg" if content_type == "image/jpg" else content_type
+
+    # Create receipt record
+    receipt_id = str(uuid.uuid4())
+    receipt_doc = {
+        "receipt_id": receipt_id,
+        "list_id": list_id,
+        "workspace_id": shopping_list["workspace_id"],
+        "uploaded_at": datetime.now(timezone.utc),
+        "processed_at": None,
+        "status": "processing",
+        "store_name": None,
+        "currency": workspace_currency,
+        "receipt_total": None,
+        "matched_total": None,
+        "raw_extracted_items": [],
+        "matched_items": [],
+        "error_message": None,
+    }
+    await db.receipts.insert_one(receipt_doc)
+
+    try:
+        # Step 1: Parse receipt with Claude vision
+        parsed = await parse_receipt_with_claude(image_base64, mime_type)
+        raw_items = parsed.get("items", [])
+
+        # Step 2: Fetch grocery items for this list
+        grocery_items = await db.grocery_items.find(
+            {"list_id": list_id}, {"_id": 0}
+        ).to_list(1000)
+
+        # Step 3: Claude-based matching
+        matched_items = []
+        if grocery_items and raw_items:
+            matches = await match_items_with_claude(raw_items, grocery_items)
+            for match in matches:
+                idx = match.get("receipt_item_index")
+                list_item_id = match.get("list_item_id")
+                price = match.get("price")
+                if idx is None or list_item_id is None or price is None:
+                    continue
+                list_item = next(
+                    (item for item in grocery_items if item["id"] == list_item_id), None
+                )
+                if not list_item:
+                    continue
+                matched_items.append({
+                    "item_id": list_item_id,
+                    "item_name": list_item["name"],
+                    "matched_receipt_line": match.get("matched_receipt_line", ""),
+                    "price": float(price),
+                    "confidence": match.get("confidence", "medium"),
+                })
+
+        matched_total = round(sum(i["price"] for i in matched_items), 2) if matched_items else None
+
+        update_data = {
+            "status": "completed",
+            "processed_at": datetime.now(timezone.utc),
+            "store_name": parsed.get("store_name"),
+            "receipt_total": parsed.get("receipt_total"),
+            "matched_total": matched_total,
+            "raw_extracted_items": raw_items,
+            "matched_items": matched_items,
+        }
+        await db.receipts.update_one({"receipt_id": receipt_id}, {"$set": update_data})
+
+        result = {k: v for k, v in {**receipt_doc, **update_data}.items() if k != "_id"}
+        return result
+
+    except Exception as e:
+        logger.error(f"Receipt processing error: {str(e)}")
+        await db.receipts.update_one(
+            {"receipt_id": receipt_id},
+            {"$set": {"status": "failed", "error_message": str(e)}}
+        )
+        raise HTTPException(status_code=422, detail=f"Could not process receipt: {str(e)}")
+
+
+@api_router.get("/lists/{list_id}/receipts")
+async def get_list_receipts(list_id: str, request: Request):
+    """Get all receipts for a shopping list (summary only)"""
+    user = await require_auth(request)
+    await verify_list_access(user, list_id)
+
+    receipts = await db.receipts.find(
+        {"list_id": list_id},
+        {"_id": 0, "raw_extracted_items": 0}
+    ).sort("uploaded_at", -1).to_list(100)
+
+    return receipts
+
+
+@api_router.post("/receipts/{receipt_id}/confirm")
+async def confirm_receipt(receipt_id: str, input: ReceiptConfirmInput, request: Request):
+    """Confirm receipt prices and save them to grocery items"""
+    user = await require_auth(request)
+
+    receipt = await db.receipts.find_one({"receipt_id": receipt_id}, {"_id": 0})
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+
+    await verify_list_access(user, receipt["list_id"])
+
+    now = datetime.now(timezone.utc)
+    updated_items = []
+
+    for confirmed in input.confirmed_items:
+        await db.grocery_items.update_one(
+            {"id": confirmed.item_id, "list_id": receipt["list_id"]},
+            {"$set": {"price": confirmed.price, "price_updated_at": now}}
+        )
+        result = await db.grocery_items.find_one({"id": confirmed.item_id}, {"_id": 0})
+        if result:
+            updated_items.append(result)
+
+    return {"updated_items": updated_items, "receipt_id": receipt_id}
+
+
 app.include_router(api_router)
 
 app.add_middleware(
