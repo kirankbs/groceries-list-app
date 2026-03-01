@@ -302,41 +302,52 @@ def _extract_json(text: str):
     return json.loads(text)
 
 
-async def parse_receipt_with_claude(image_base64: str, mime_type: str) -> dict:
-    """Use Claude vision to parse a receipt image and extract items"""
+async def parse_and_match_receipt_with_claude(image_base64: str, mime_type: str, grocery_items: list) -> dict:
+    """Single Claude call: parse receipt AND match to grocery items simultaneously"""
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=str(uuid.uuid4()),
-        system_message="You are a receipt parser that extracts structured data from receipt images. Always return valid JSON only."
+        system_message="You are a receipt parser and grocery item matcher. Always return valid JSON only."
     ).with_model("anthropic", "claude-sonnet-4-6")
 
     image_content = ImageContent(image_base64=image_base64)
 
+    list_items_str = json.dumps([
+        {"id": item["id"], "name": item["name"]}
+        for item in grocery_items
+    ], indent=2) if grocery_items else "[]"
+
     prompt = (
-        "You are a receipt parser. The user has uploaded a photo of a shopping receipt.\n\n"
-        "Your job:\n"
-        "1. Extract every line item from the receipt with its price\n"
-        "2. Identify the store name, currency, and total amount if visible\n"
-        "3. Translate all item names to English regardless of original language\n"
-        "4. Return ONLY a valid JSON object — no explanation, no markdown, no preamble\n\n"
-        "Return this exact JSON structure:\n"
+        "You are a receipt parser AND grocery item matcher.\n\n"
+        "TASK 1: Extract every line item from this receipt image.\n"
+        "TASK 2: Match those items to the grocery list below.\n\n"
+        f"Grocery list items:\n{list_items_str}\n\n"
+        "Rules:\n"
+        "- Translate all item names to English\n"
+        "- Smart matching: 'Org. Whole Milk' → 'Milk', 'Choc Chip Cookies' → 'Cookies'\n"
+        "- Only match if reasonably confident — skip if no good match\n"
+        "- Each grocery list item can only be matched once\n"
+        "- Do NOT include tax lines, discounts, subtotals as items\n\n"
+        "Return ONLY a valid JSON object, no explanation:\n"
         "{\n"
         '  "store_name": "string or null",\n'
-        '  "currency": "string e.g. EUR, USD, GBP, or null",\n'
         '  "receipt_total": number or null,\n'
         '  "items": [\n'
         "    {\n"
         '      "original_name": "exact text from receipt",\n'
         '      "english_name": "translated to English",\n'
-        '      "quantity": number or null,\n'
-        '      "unit_price": number or null,\n'
-        '      "total_price": number,\n'
+        '      "total_price": number\n'
+        "    }\n"
+        "  ],\n"
+        '  "matched_items": [\n'
+        "    {\n"
+        '      "list_item_id": "id from grocery list above",\n'
+        '      "matched_receipt_line": "original_name from receipt",\n'
+        '      "price": number,\n'
         '      "confidence": "high" | "medium" | "low"\n'
         "    }\n"
         "  ]\n"
-        "}\n\n"
-        "If you cannot read a line clearly, still include it with confidence 'low'.\n"
-        "Do not include tax lines, discount lines, subtotals, or the final total as items."
+        "}"
     )
 
     message = UserMessage(text=prompt, file_contents=[image_content])
@@ -344,55 +355,57 @@ async def parse_receipt_with_claude(image_base64: str, mime_type: str) -> dict:
     return _extract_json(response)
 
 
-async def match_items_with_claude(extracted_items: list, grocery_items: list) -> list:
-    """Use Claude to intelligently match receipt items to grocery list items"""
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=str(uuid.uuid4()),
-        system_message="You are a precise grocery item matcher. Always return valid JSON only."
-    ).with_model("anthropic", "claude-sonnet-4-6")
+async def process_receipt_background(receipt_id: str, list_id: str, image_base64: str, mime_type: str):
+    """Background task: run Claude and update receipt status in DB"""
+    try:
+        grocery_items = await db.grocery_items.find(
+            {"list_id": list_id}, {"_id": 0}
+        ).to_list(1000)
 
-    receipt_items_str = json.dumps([
-        {
-            "index": i,
-            "original_name": item.get("original_name", ""),
-            "english_name": item.get("english_name", ""),
-            "total_price": item.get("total_price")
-        }
-        for i, item in enumerate(extracted_items)
-    ], indent=2)
+        parsed = await parse_and_match_receipt_with_claude(image_base64, mime_type, grocery_items)
 
-    list_items_str = json.dumps([
-        {"id": item["id"], "name": item["name"]}
-        for item in grocery_items
-    ], indent=2)
+        raw_items = parsed.get("items", [])
+        matched_items_raw = parsed.get("matched_items", [])
 
-    prompt = (
-        "Match items from a shopping receipt to items in a grocery shopping list.\n\n"
-        f"Receipt items:\n{receipt_items_str}\n\n"
-        f"Shopping list items:\n{list_items_str}\n\n"
-        "Rules:\n"
-        "- Match each receipt item to the best matching shopping list item\n"
-        "- Be smart: 'Org. Whole Milk' should match 'Milk', 'Choc Chip Cookies' -> 'Cookies'\n"
-        "- Only match if reasonably confident — skip if no good match exists\n"
-        "- Each shopping list item can only be matched once (use the best receipt item)\n"
-        "- Use total_price as the price\n\n"
-        "Return ONLY a valid JSON array, no explanation:\n"
-        "[\n"
-        "  {\n"
-        '    "receipt_item_index": 0,\n'
-        '    "list_item_id": "...",\n'
-        '    "matched_receipt_line": "original_name from receipt",\n'
-        '    "price": 1.99,\n'
-        '    "confidence": "high"\n'
-        "  }\n"
-        "]"
-    )
+        matched_items = []
+        for match in matched_items_raw:
+            list_item_id = match.get("list_item_id")
+            price = match.get("price")
+            if not list_item_id or price is None:
+                continue
+            list_item = next(
+                (item for item in grocery_items if item["id"] == list_item_id), None
+            )
+            if not list_item:
+                continue
+            matched_items.append({
+                "item_id": list_item_id,
+                "item_name": list_item["name"],
+                "matched_receipt_line": match.get("matched_receipt_line", ""),
+                "price": float(price),
+                "confidence": match.get("confidence", "medium"),
+            })
 
-    message = UserMessage(text=prompt)
-    response = await chat.send_message(message)
-    result = _extract_json(response)
-    return result if isinstance(result, list) else []
+        matched_total = round(sum(i["price"] for i in matched_items), 2) if matched_items else None
+
+        await db.receipts.update_one(
+            {"receipt_id": receipt_id},
+            {"$set": {
+                "status": "completed",
+                "processed_at": datetime.now(timezone.utc),
+                "store_name": parsed.get("store_name"),
+                "receipt_total": parsed.get("receipt_total"),
+                "matched_total": matched_total,
+                "raw_extracted_items": raw_items,
+                "matched_items": matched_items,
+            }}
+        )
+    except Exception as e:
+        logger.error(f"Background receipt processing error: {str(e)}")
+        await db.receipts.update_one(
+            {"receipt_id": receipt_id},
+            {"$set": {"status": "failed", "error_message": str(e)}}
+        )
 
 
 # ==================== AUTH ROUTES ====================
