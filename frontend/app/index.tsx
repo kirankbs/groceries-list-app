@@ -361,6 +361,61 @@ export default function GroceryTodo() {
     } catch (e) { console.error(e); }
   };
 
+  // Category CRUD
+  const openCategoryForm = (cat: Category | null) => {
+    setEditingCategory(cat);
+    setCategoryName(cat ? cat.name : '');
+    setCategoryColor(cat ? cat.color : AVAILABLE_COLORS[0]);
+    setCategoryIcon(cat ? cat.icon : AVAILABLE_ICONS[0]);
+    setCategoryError('');
+    setShowCategoryFormModal(true);
+  };
+
+  const saveCategoryHandler = async () => {
+    if (!categoryName.trim() || !currentWorkspace) return;
+    setSavingCategory(true);
+    setCategoryError('');
+    try {
+      if (editingCategory) {
+        const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories/${editingCategory.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
+          body: JSON.stringify({ name: categoryName.trim(), color: categoryColor, icon: categoryIcon }),
+        });
+        if (!res.ok) { const err = await res.json(); setCategoryError(err.detail || 'Failed to update'); return; }
+      } else {
+        const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
+          body: JSON.stringify({ name: categoryName.trim(), color: categoryColor, icon: categoryIcon, workspace_id: currentWorkspace.workspace_id }),
+        });
+        if (!res.ok) { const err = await res.json(); setCategoryError(err.detail || 'Failed to create'); return; }
+      }
+      await fetchCategories();
+      setShowCategoryFormModal(false);
+      setEditingCategory(null);
+    } catch { setCategoryError('Network error. Try again.'); }
+    finally { setSavingCategory(false); }
+  };
+
+  const deleteCategoryHandler = async () => {
+    if (!categoryToDelete) return;
+    setDeletingCategory(true);
+    try {
+      const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories/${categoryToDelete.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${sessionToken}` },
+      });
+      if (res.ok) {
+        await fetchCategories();
+        await fetchItems();
+        setShowDeleteCategoryModal(false);
+        setCategoryToDelete(null);
+      }
+    } catch (e) { console.error(e); }
+    finally { setDeletingCategory(false); }
+  };
+
   // Grouped items
   const groupedItems = useMemo(() => {
     let filtered = items.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()));
