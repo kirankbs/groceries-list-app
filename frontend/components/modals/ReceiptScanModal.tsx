@@ -78,7 +78,12 @@ export function ReceiptScanModal({ visible, theme, listId, onClose, onPricesSave
 
       if (data.status === 'completed') {
         if (!data.matched_items || data.matched_items.length === 0) {
-          setError('No matching items found. Make sure items on the receipt are in your list.');
+          const rawCount = (data as any).raw_extracted_items?.length || 0;
+          setError(
+            rawCount > 0
+              ? `Receipt scanned (${rawCount} items found) but none matched your list. Make sure your list has items from this store.`
+              : 'Could not extract items from the receipt. Try a clearer photo with better lighting.'
+          );
           setStep('picker');
           return;
         }
