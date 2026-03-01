@@ -15,6 +15,7 @@ import {
   Modal,
   ScrollView,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,26 +24,43 @@ import { useAuth } from '../contexts/AuthContext';
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 const AVAILABLE_ICONS = [
-  'pricetag-outline', 'cart-outline', 'basket-outline', 'bag-outline',
-  'leaf-outline', 'water-outline', 'restaurant-outline', 'pizza-outline',
-  'cafe-outline', 'ice-cream-outline', 'snow-outline', 'cube-outline',
-  'home-outline', 'ellipsis-horizontal-outline', 'nutrition-outline',
-  'fish-outline', 'beer-outline', 'wine-outline', 'fast-food-outline',
+  // Shopping
+  'cart-outline', 'basket-outline', 'bag-outline', 'bag-handle-outline', 'pricetag-outline',
+  // Food & beverages
+  'restaurant-outline', 'pizza-outline', 'cafe-outline', 'fast-food-outline', 'ice-cream-outline',
+  'fish-outline', 'beer-outline', 'wine-outline', 'nutrition-outline', 'flame-outline',
+  // Fresh produce (vegetables, fruits)
+  'leaf-outline', 'flower-outline', 'sunny-outline', 'water-outline',
+  // Pantry (cereals, lentils, nuts, dry goods)
+  'grid-outline', 'ellipse-outline', 'aperture-outline', 'snow-outline', 'cube-outline',
+  // Health & pharmacy (medicine, bandages)
+  'medical-outline', 'bandage-outline',
+  // Household & cleaning supplies
+  'sparkles-outline', 'home-outline', 'construct-outline',
+  // Clothes & personal care
+  'shirt-outline', 'body-outline',
+  // Baby products
+  'happy-outline',
+  // Electronics
+  'phone-portrait-outline', 'hardware-chip-outline', 'laptop-outline',
+  // Pets, school, general
+  'paw-outline', 'book-outline', 'ellipsis-horizontal-outline',
 ];
 
 const AVAILABLE_COLORS = [
   '#4CAF50', '#2196F3', '#F44336', '#FF9800', '#9C27B0',
   '#E91E63', '#00BCD4', '#795548', '#607D8B', '#9E9E9E',
+  '#FF5722', '#FFC107', '#009688', '#3F51B5', '#8BC34A',
 ];
 
-interface Category {
+type Category = {
   id: string;
   name: string;
   color: string;
   icon: string;
 }
 
-interface GroceryItem {
+type GroceryItem = {
   id: string;
   list_id: string;
   name: string;
@@ -118,14 +136,16 @@ export default function GroceryTodo() {
   // Profile modal
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // Category modal
+  // Category modal — single modal with 'list' | 'form' view to avoid Android multi-modal bug
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [showCategoryFormModal, setShowCategoryFormModal] = useState(false);
+  const [categoryView, setCategoryView] = useState<'list' | 'form'>('list');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState('');
-  const [categoryColor, setCategoryColor] = useState('#4CAF50');
-  const [categoryIcon, setCategoryIcon] = useState('pricetag-outline');
+  const [categoryColor, setCategoryColor] = useState(AVAILABLE_COLORS[0]);
+  const [categoryIcon, setCategoryIcon] = useState(AVAILABLE_ICONS[0]);
   const [savingCategory, setSavingCategory] = useState(false);
+  const [categoryError, setCategoryError] = useState('');
+  const [deletingCategory, setDeletingCategory] = useState(false);
 
   const theme = useMemo(() => ({
     background: darkMode ? '#121212' : '#f8f9fa',
@@ -338,6 +358,67 @@ export default function GroceryTodo() {
     try {
       await saveAsTemplate(currentList.list_id);
     } catch (e) { console.error(e); }
+  };
+
+  // Category CRUD
+  const openCategoryForm = (cat: Category | null) => {
+    setEditingCategory(cat);
+    setCategoryName(cat ? cat.name : '');
+    setCategoryColor(cat ? cat.color : AVAILABLE_COLORS[0]);
+    setCategoryIcon(cat ? cat.icon : AVAILABLE_ICONS[0]);
+    setCategoryError('');
+    setCategoryView('form');
+  };
+
+  const saveCategoryHandler = async () => {
+    if (!categoryName.trim() || !currentWorkspace) return;
+    setSavingCategory(true);
+    setCategoryError('');
+    try {
+      if (editingCategory) {
+        const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories/${editingCategory.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
+          body: JSON.stringify({ name: categoryName.trim(), color: categoryColor, icon: categoryIcon }),
+        });
+        if (!res.ok) { const err = await res.json(); setCategoryError(err.detail || 'Failed to update'); return; }
+      } else {
+        const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
+          body: JSON.stringify({ name: categoryName.trim(), color: categoryColor, icon: categoryIcon, workspace_id: currentWorkspace.workspace_id }),
+        });
+        if (!res.ok) { const err = await res.json(); setCategoryError(err.detail || 'Failed to create'); return; }
+      }
+      await fetchCategories();
+      setEditingCategory(null);
+      setCategoryView('list');
+    } catch { setCategoryError('Network error. Try again.'); }
+    finally { setSavingCategory(false); }
+  };
+
+  const confirmDeleteCategory = (cat: Category) => {
+    Alert.alert(
+      'Delete Category?',
+      `"${cat.name}" will be deleted. All items in this category will be moved to Other.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            setDeletingCategory(true);
+            try {
+              const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/categories/${cat.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${sessionToken}` },
+              });
+              if (res.ok) { await fetchCategories(); await fetchItems(); }
+            } catch (e) { console.error(e); }
+            finally { setDeletingCategory(false); }
+          },
+        },
+      ]
+    );
   };
 
   // Grouped items
@@ -937,26 +1018,159 @@ export default function GroceryTodo() {
           </View>
         </Modal>
 
-        {/* Category Modal (simplified) */}
-        <Modal visible={showCategoryModal} animationType="slide" transparent onRequestClose={() => setShowCategoryModal(false)}>
+        {/* ===== SINGLE CATEGORY MODAL (list view + form view) - avoids Android multi-modal bug ===== */}
+        <Modal
+          visible={showCategoryModal}
+          animationType="slide"
+          transparent
+          onRequestClose={() => {
+            if (categoryView === 'form') {
+              setCategoryView('list');
+            } else {
+              setShowCategoryModal(false);
+            }
+          }}
+        >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Categories</Text>
-                <TouchableOpacity onPress={() => setShowCategoryModal(false)}><Ionicons name="close" size={24} color={theme.text} /></TouchableOpacity>
-              </View>
-              <FlatList
-                data={categories}
-                keyExtractor={c => c.id}
-                renderItem={({ item: cat }) => (
-                  <View style={[styles.categoryListItem, { backgroundColor: theme.inputBg }]}>
-                    <View style={[styles.categoryListIcon, { backgroundColor: cat.color + '20' }]}><Ionicons name={cat.icon as any} size={20} color={cat.color} /></View>
-                    <Text style={[styles.categoryListName, { color: theme.text }]}>{cat.name}</Text>
+            {/* LIST VIEW */}
+            {categoryView === 'list' && (
+              <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: theme.text }]}>Manage Categories</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                    <TouchableOpacity
+                      style={[styles.addCategoryBtn, { backgroundColor: '#4CAF5015' }]}
+                      onPress={() => openCategoryForm(null)}
+                      data-testid="add-category-btn"
+                    >
+                      <Ionicons name="add" size={18} color="#4CAF50" />
+                      <Text style={{ color: '#4CAF50', fontWeight: '600', fontSize: 13 }}>Add</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setShowCategoryModal(false)} data-testid="close-category-modal">
+                      <Ionicons name="close" size={24} color={theme.text} />
+                    </TouchableOpacity>
                   </View>
-                )}
-                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-              />
-            </View>
+                </View>
+                <FlatList
+                  data={categories}
+                  keyExtractor={c => c.id}
+                  renderItem={({ item: cat }) => (
+                    <View style={[styles.categoryListItem, { backgroundColor: theme.inputBg }]}>
+                      <View style={[styles.categoryListIcon, { backgroundColor: cat.color + '25' }]}>
+                        <Ionicons name={cat.icon as any} size={20} color={cat.color} />
+                      </View>
+                      <Text style={[styles.categoryListName, { color: theme.text, flex: 1 }]}>{cat.name}</Text>
+                      {cat.name !== 'Other' && (
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <TouchableOpacity
+                            style={[styles.catActionBtn, { backgroundColor: '#2196F318' }]}
+                            onPress={() => openCategoryForm(cat)}
+                            data-testid={`edit-cat-btn-${cat.id}`}
+                          >
+                            <Ionicons name="pencil-outline" size={15} color="#2196F3" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.catActionBtn, { backgroundColor: '#FF634718' }]}
+                            onPress={() => confirmDeleteCategory(cat)}
+                            data-testid={`delete-cat-btn-${cat.id}`}
+                          >
+                            {deletingCategory
+                              ? <ActivityIndicator size={14} color="#FF6347" />
+                              : <Ionicons name="trash-outline" size={15} color="#FF6347" />
+                            }
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                  ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                />
+              </View>
+            )}
+
+            {/* FORM VIEW (create / edit) — same modal, no nesting */}
+            {categoryView === 'form' && (
+              <View style={[styles.modalContent, { backgroundColor: theme.surface, height: '90%' }]}>
+                <View style={styles.modalHeader}>
+                  <TouchableOpacity onPress={() => setCategoryView('list')} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="chevron-back" size={20} color={theme.text} />
+                    <Text style={[styles.modalTitle, { color: theme.text }]}>{editingCategory ? 'Edit Category' : 'New Category'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShowCategoryModal(false)} data-testid="close-cat-form">
+                    <Ionicons name="close" size={24} color={theme.text} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
+                  {/* Live Preview */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: theme.inputBg, marginBottom: 16 }}>
+                    <View style={[styles.categoryListIcon, { backgroundColor: categoryColor + '25', width: 44, height: 44, borderRadius: 11 }]}>
+                      <Ionicons name={categoryIcon as any} size={24} color={categoryColor} />
+                    </View>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: categoryName ? theme.text : theme.textSecondary }}>
+                      {categoryName || 'Category Preview'}
+                    </Text>
+                  </View>
+
+                  {/* Name */}
+                  <Text style={[styles.catFormLabel, { color: theme.textSecondary }]}>Category Name</Text>
+                  <TextInput
+                    style={[styles.modalInput, { backgroundColor: theme.inputBg, color: theme.text }]}
+                    placeholder="e.g. Vegetables, Electronics..."
+                    placeholderTextColor={theme.textSecondary}
+                    value={categoryName}
+                    onChangeText={t => { setCategoryName(t); setCategoryError(''); }}
+                    autoFocus
+                    data-testid="category-name-input"
+                  />
+                  {!!categoryError && <Text style={styles.catErrorText}>{categoryError}</Text>}
+
+                  {/* Color Picker */}
+                  <Text style={[styles.catFormLabel, { color: theme.textSecondary }]}>Color</Text>
+                  <View style={styles.colorPickerRow}>
+                    {AVAILABLE_COLORS.map(color => (
+                      <TouchableOpacity
+                        key={color}
+                        style={[styles.colorCircle, { backgroundColor: color }, categoryColor === color && styles.colorCircleSelected]}
+                        onPress={() => setCategoryColor(color)}
+                      />
+                    ))}
+                  </View>
+
+                  {/* Icon Picker */}
+                  <Text style={[styles.catFormLabel, { color: theme.textSecondary }]}>Icon</Text>
+                  <View style={styles.iconPickerGrid}>
+                    {AVAILABLE_ICONS.map(icon => (
+                      <TouchableOpacity
+                        key={icon}
+                        style={[
+                          styles.iconCell,
+                          { backgroundColor: categoryIcon === icon ? categoryColor + '25' : theme.inputBg },
+                          categoryIcon === icon && { borderWidth: 2, borderColor: categoryColor },
+                        ]}
+                        onPress={() => setCategoryIcon(icon)}
+                      >
+                        <Ionicons name={icon as any} size={22} color={categoryIcon === icon ? categoryColor : theme.textSecondary} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <View style={{ height: 8 }} />
+                </ScrollView>
+
+                {/* Sticky Save Button — outside ScrollView so always visible */}
+                <TouchableOpacity
+                  style={[styles.primaryButton, { marginTop: 12 }, (savingCategory || !categoryName.trim()) && styles.buttonDisabled]}
+                  onPress={saveCategoryHandler}
+                  disabled={savingCategory || !categoryName.trim()}
+                  data-testid="save-category-btn"
+                >
+                  {savingCategory
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={styles.primaryButtonText}>{editingCategory ? 'Save Changes' : 'Create Category'}</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </Modal>
 
@@ -1081,6 +1295,15 @@ const styles = StyleSheet.create({
   categoryListItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, gap: 12 },
   categoryListIcon: { width: 36, height: 36, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
   categoryListName: { fontSize: 16, fontWeight: '500' },
+  addCategoryBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  catActionBtn: { width: 30, height: 30, borderRadius: 7, justifyContent: 'center', alignItems: 'center' },
+  catFormLabel: { fontSize: 13, fontWeight: '600', marginBottom: 10, marginTop: 14, letterSpacing: 0.3, textTransform: 'uppercase' },
+  catErrorText: { color: '#FF6347', fontSize: 13, marginTop: -10, marginBottom: 12 },
+  colorPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
+  colorCircle: { width: 34, height: 34, borderRadius: 17 },
+  colorCircleSelected: { borderWidth: 3, borderColor: '#fff', elevation: 4 },
+  iconPickerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  iconCell: { width: 50, height: 50, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   workspaceItemMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   workspaceItemActions: { flexDirection: 'row', gap: 4 },
   workspaceItemActionBtn: { width: 36, height: 36, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.05)' },

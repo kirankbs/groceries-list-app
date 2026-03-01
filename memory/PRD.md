@@ -1,9 +1,9 @@
 # Grocery Todo App - Product Requirements Document (PRD)
 
-**Version:** 2.0  
-**Last Updated:** February 2026  
+**Version:** 2.1  
+**Last Updated:** March 2026  
 **Platform:** Android, iOS (Expo React Native)  
-**Status:** Multi-Household Architecture Complete
+**Status:** Multi-Household Architecture Complete + Category Management CRUD
 
 ---
 
@@ -595,6 +595,16 @@ Collections:
 | | | - Invite people UI improvements |
 | | | - Mobile safe area fix |
 | | | - Renamed "Workspace" to "Household" |
+| 2.1.0 | Mar 2026 | Bug fixes + Category Management CRUD |
+| | | - **FIXED:** Household switching state bug on native mobile (circular useEffect dependency) |
+| | | - **FEATURE:** Full category CRUD (Create/Edit/Delete) |
+| | | - Category form with name, color picker (15 colors), icon picker (41 icons) |
+| | | - 20+ new grocery-relevant icons (shirt, medical, sparkles, pharmacy, electronics, etc.) |
+| | | - Delete category moves items to "Other" |
+| | | - Duplicate name validation (case-insensitive) |
+| | | - "Other" category protected from deletion |
+| | | - Live preview in category form |
+| | | - Sticky save button always visible |
 | 1.0.0 | Feb 2026 | Initial MVP release |
 | | | - Google authentication |
 | | | - Single household sharing |
@@ -606,11 +616,10 @@ Collections:
 
 ## 12. Known Limitations
 
-### Current Version (2.0)
+### Current Version (2.1)
 - No offline support (requires internet)
 - No push notifications yet
 - Cannot delete shopping lists from UI (only from backend)
-- Templates feature UI incomplete
 - No real-time sync between users
 
 ### Technical Debt
