@@ -1073,8 +1073,13 @@ async def update_workspace_currency(workspace_id: str, input: WorkspaceCurrencyU
 # ==================== RECEIPT ROUTES ====================
 
 @api_router.post("/lists/{list_id}/upload-receipt")
-async def upload_receipt(list_id: str, request: Request, image: UploadFile = File(...)):
-    """Upload and AI-process a receipt for a shopping list"""
+async def upload_receipt(
+    list_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    image: UploadFile = File(...)
+):
+    """Upload a receipt image. Returns immediately with receipt_id — use GET /receipts/{id} to poll status."""
     user = await require_auth(request)
     shopping_list = await verify_list_access(user, list_id)
 
@@ -1095,7 +1100,7 @@ async def upload_receipt(list_id: str, request: Request, image: UploadFile = Fil
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
     mime_type = "image/jpeg" if content_type == "image/jpg" else content_type
 
-    # Create receipt record
+    # Create receipt record with "processing" status
     receipt_id = str(uuid.uuid4())
     receipt_doc = {
         "receipt_id": receipt_id,
@@ -1114,62 +1119,29 @@ async def upload_receipt(list_id: str, request: Request, image: UploadFile = Fil
     }
     await db.receipts.insert_one(receipt_doc)
 
-    try:
-        # Step 1: Parse receipt with Claude vision
-        parsed = await parse_receipt_with_claude(image_base64, mime_type)
-        raw_items = parsed.get("items", [])
+    # Kick off background processing — returns immediately so proxy doesn't time out
+    background_tasks.add_task(
+        process_receipt_background,
+        receipt_id, list_id, image_base64, mime_type
+    )
 
-        # Step 2: Fetch grocery items for this list
-        grocery_items = await db.grocery_items.find(
-            {"list_id": list_id}, {"_id": 0}
-        ).to_list(1000)
+    return {"receipt_id": receipt_id, "status": "processing"}
 
-        # Step 3: Claude-based matching
-        matched_items = []
-        if grocery_items and raw_items:
-            matches = await match_items_with_claude(raw_items, grocery_items)
-            for match in matches:
-                idx = match.get("receipt_item_index")
-                list_item_id = match.get("list_item_id")
-                price = match.get("price")
-                if idx is None or list_item_id is None or price is None:
-                    continue
-                list_item = next(
-                    (item for item in grocery_items if item["id"] == list_item_id), None
-                )
-                if not list_item:
-                    continue
-                matched_items.append({
-                    "item_id": list_item_id,
-                    "item_name": list_item["name"],
-                    "matched_receipt_line": match.get("matched_receipt_line", ""),
-                    "price": float(price),
-                    "confidence": match.get("confidence", "medium"),
-                })
 
-        matched_total = round(sum(i["price"] for i in matched_items), 2) if matched_items else None
+@api_router.get("/receipts/{receipt_id}")
+async def get_receipt_status(receipt_id: str, request: Request):
+    """Poll receipt processing status. Frontend polls this until status is 'completed' or 'failed'."""
+    user = await require_auth(request)
 
-        update_data = {
-            "status": "completed",
-            "processed_at": datetime.now(timezone.utc),
-            "store_name": parsed.get("store_name"),
-            "receipt_total": parsed.get("receipt_total"),
-            "matched_total": matched_total,
-            "raw_extracted_items": raw_items,
-            "matched_items": matched_items,
-        }
-        await db.receipts.update_one({"receipt_id": receipt_id}, {"$set": update_data})
+    receipt = await db.receipts.find_one(
+        {"receipt_id": receipt_id},
+        {"_id": 0, "raw_extracted_items": 0}
+    )
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
 
-        result = {k: v for k, v in {**receipt_doc, **update_data}.items() if k != "_id"}
-        return result
-
-    except Exception as e:
-        logger.error(f"Receipt processing error: {str(e)}")
-        await db.receipts.update_one(
-            {"receipt_id": receipt_id},
-            {"$set": {"status": "failed", "error_message": str(e)}}
-        )
-        raise HTTPException(status_code=422, detail=f"Could not process receipt: {str(e)}")
+    await verify_list_access(user, receipt["list_id"])
+    return receipt
 
 
 @api_router.get("/lists/{list_id}/receipts")
