@@ -587,6 +587,24 @@ Collections:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.5.0 | Mar 2026 | AI Receipt Scanning — fully verified end-to-end |
+| | | - **FEATURE:** `POST /api/lists/{id}/upload-receipt` — async background processing (Claude `claude-sonnet-4-6` vision) |
+| | | - **FEATURE:** Single combined Claude call: parse receipt + smart match items in one prompt |
+| | | - **FEATURE:** `GET /api/receipts/{id}` — polling endpoint; frontend polls every 3s up to 120s |
+| | | - **FEATURE:** `POST /api/receipts/{id}/confirm` — saves confirmed prices to grocery items |
+| | | - **FEATURE:** `PUT /api/workspaces/{id}/currency` — per-household currency (EUR/USD/GBP/CHF/AUD/CAD, default EUR) |
+| | | - **FEATURE:** `ReceiptScanModal` — 4-step UX: picker → AI processing → review with editable prices → confirm |
+| | | - **FEATURE:** "Scan Receipt" button on list status bar (visible when in_progress or completed) |
+| | | - **FEATURE:** Per-item price display in grocery list rows |
+| | | - **FEATURE:** "Total spent" footer showing sum of all priced items |
+| | | - **FEATURE:** Currency selector in Household Settings (6 currencies) |
+| | | - **FIX:** Background task pattern avoids Kubernetes proxy timeout (~30s) for 40-60s Claude calls |
+| | | - **FIX:** `expo-image-picker` + `expo-image-manipulator` at correct SDK 54 versions (17.0.10, 14.0.8) |
+| | | - **VERIFIED:** End-to-end tested with real Lidl German receipt — 19 items matched and prices confirmed |
+| 2.4.0 | Mar 2026 | Major refactoring of index.tsx |
+| | | - Broke 1500-line index.tsx into 10+ components under `frontend/components/modals/` |
+| | | - Fixed web-compatibility issues (Alert.alert → Platform.OS aware) |
+| | | - Fixed testID vs data-testid across all components |
 | 2.0.0 | Feb 2026 | Multi-household architecture |
 | | | - Multiple households per user |
 | | | - Personal household auto-creation |
@@ -605,7 +623,7 @@ Collections:
 | | | - **FIXED:** Household switching state bug on native mobile (circular useEffect dependency) |
 | | | - **FEATURE:** Full category CRUD (Create/Edit/Delete) |
 | | | - Category form with name, color picker (15 colors), icon picker (41 icons) |
-| | | - 20+ new grocery-relevant icons (shirt, medical, sparkles, pharmacy, electronics, etc.) |
+| | | - 20+ new grocery-relevant icons |
 | | | - Delete category moves items to "Other" |
 | | | - Duplicate name validation (case-insensitive) |
 | | | - "Other" category protected from deletion |
