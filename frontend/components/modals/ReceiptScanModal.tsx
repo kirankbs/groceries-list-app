@@ -26,6 +26,8 @@ interface ReceiptResult {
   receipt_total?: number;
   matched_total?: number;
   matched_items: MatchedItem[];
+  status?: string;
+  error_message?: string;
 }
 
 interface Props {
