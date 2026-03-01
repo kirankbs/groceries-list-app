@@ -1,9 +1,9 @@
 # Grocery Todo App - Product Requirements Document (PRD)
 
-**Version:** 2.0  
-**Last Updated:** February 2026  
+**Version:** 2.1  
+**Last Updated:** March 2026  
 **Platform:** Android, iOS (Expo React Native)  
-**Status:** Multi-Household Architecture Complete
+**Status:** Multi-Household Architecture Complete + Category Management CRUD
 
 ---
 
