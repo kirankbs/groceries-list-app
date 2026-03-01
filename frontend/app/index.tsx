@@ -52,14 +52,14 @@ const AVAILABLE_COLORS = [
   '#FF5722', '#FFC107', '#009688', '#3F51B5', '#8BC34A',
 ];
 
-interface Category {
+type Category = {
   id: string;
   name: string;
   color: string;
   icon: string;
 }
 
-interface GroceryItem {
+type GroceryItem = {
   id: string;
   list_id: string;
   name: string;
