@@ -561,6 +561,16 @@ export default function GroceryTodo() {
           onClose={() => setShowCategoryModal(false)}
         />
 
+        {currentList && (
+          <ReceiptScanModal
+            visible={showReceiptScanModal}
+            theme={theme}
+            listId={currentList.list_id}
+            onClose={() => setShowReceiptScanModal(false)}
+            onPricesSaved={fetchItems}
+          />
+        )}
+
       </KeyboardAvoidingView>
     </View>
   );
