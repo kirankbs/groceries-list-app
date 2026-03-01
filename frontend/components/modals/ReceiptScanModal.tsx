@@ -185,11 +185,6 @@ export function ReceiptScanModal({ visible, theme, listId, onClose, onPricesSave
       setReceiptResult(data);
       setEditedPrices(prices);
       setStep('review');
-    } catch (e: any) {
-      setError(e.message || 'Could not read receipt. Please try a clearer photo.');
-      setStep('picker');
-    }
-  };
 
   const handleConfirm = async () => {
     if (!receiptResult) return;
