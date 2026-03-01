@@ -33,6 +33,8 @@ import { ListsModal } from '../components/modals/ListsModal';
 import { CreateListModal } from '../components/modals/CreateListModal';
 import { ProfileModal } from '../components/modals/ProfileModal';
 import { InviteCodeModal } from '../components/modals/InviteCodeModal';
+import { CategoryModal } from '../components/modals/CategoryModal';
+import { ReceiptScanModal } from '../components/modals/ReceiptScanModal';
 
 export default function GroceryTodo() {
   const {
