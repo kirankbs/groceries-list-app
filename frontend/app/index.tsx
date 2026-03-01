@@ -135,17 +135,15 @@ export default function GroceryTodo() {
   // Profile modal
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // Category modal
+  // Category modal — single modal with 'list' | 'form' view to avoid Android multi-modal bug
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [showCategoryFormModal, setShowCategoryFormModal] = useState(false);
+  const [categoryView, setCategoryView] = useState<'list' | 'form'>('list');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState('');
   const [categoryColor, setCategoryColor] = useState(AVAILABLE_COLORS[0]);
   const [categoryIcon, setCategoryIcon] = useState(AVAILABLE_ICONS[0]);
   const [savingCategory, setSavingCategory] = useState(false);
   const [categoryError, setCategoryError] = useState('');
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
-  const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState(false);
 
   const theme = useMemo(() => ({
