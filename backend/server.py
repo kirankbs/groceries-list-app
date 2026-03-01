@@ -283,6 +283,118 @@ async def update_list_status(list_id: str):
         )
 
 
+# ==================== CLAUDE RECEIPT HELPERS ====================
+
+def _extract_json(text: str):
+    """Extract JSON from Claude response, handling markdown code blocks"""
+    text = text.strip()
+    if "```" in text:
+        parts = text.split("```")
+        for part in parts:
+            part = part.strip()
+            if part.startswith("json"):
+                part = part[4:].strip()
+            if part and (part.startswith("{") or part.startswith("[")):
+                try:
+                    return json.loads(part)
+                except Exception:
+                    continue
+    return json.loads(text)
+
+
+async def parse_receipt_with_claude(image_base64: str, mime_type: str) -> dict:
+    """Use Claude vision to parse a receipt image and extract items"""
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=str(uuid.uuid4()),
+        system_message="You are a receipt parser that extracts structured data from receipt images. Always return valid JSON only."
+    ).with_model("anthropic", "claude-sonnet-4-6")
+
+    image_content = ImageContent(image_base64=image_base64)
+
+    prompt = (
+        "You are a receipt parser. The user has uploaded a photo of a shopping receipt.\n\n"
+        "Your job:\n"
+        "1. Extract every line item from the receipt with its price\n"
+        "2. Identify the store name, currency, and total amount if visible\n"
+        "3. Translate all item names to English regardless of original language\n"
+        "4. Return ONLY a valid JSON object — no explanation, no markdown, no preamble\n\n"
+        "Return this exact JSON structure:\n"
+        "{\n"
+        '  "store_name": "string or null",\n'
+        '  "currency": "string e.g. EUR, USD, GBP, or null",\n'
+        '  "receipt_total": number or null,\n'
+        '  "items": [\n'
+        "    {\n"
+        '      "original_name": "exact text from receipt",\n'
+        '      "english_name": "translated to English",\n'
+        '      "quantity": number or null,\n'
+        '      "unit_price": number or null,\n'
+        '      "total_price": number,\n'
+        '      "confidence": "high" | "medium" | "low"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "If you cannot read a line clearly, still include it with confidence 'low'.\n"
+        "Do not include tax lines, discount lines, subtotals, or the final total as items."
+    )
+
+    message = UserMessage(text=prompt, file_contents=[image_content])
+    response = await chat.send_message(message)
+    return _extract_json(response)
+
+
+async def match_items_with_claude(extracted_items: list, grocery_items: list) -> list:
+    """Use Claude to intelligently match receipt items to grocery list items"""
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=str(uuid.uuid4()),
+        system_message="You are a precise grocery item matcher. Always return valid JSON only."
+    ).with_model("anthropic", "claude-sonnet-4-6")
+
+    receipt_items_str = json.dumps([
+        {
+            "index": i,
+            "original_name": item.get("original_name", ""),
+            "english_name": item.get("english_name", ""),
+            "total_price": item.get("total_price")
+        }
+        for i, item in enumerate(extracted_items)
+    ], indent=2)
+
+    list_items_str = json.dumps([
+        {"id": item["id"], "name": item["name"]}
+        for item in grocery_items
+    ], indent=2)
+
+    prompt = (
+        "Match items from a shopping receipt to items in a grocery shopping list.\n\n"
+        f"Receipt items:\n{receipt_items_str}\n\n"
+        f"Shopping list items:\n{list_items_str}\n\n"
+        "Rules:\n"
+        "- Match each receipt item to the best matching shopping list item\n"
+        "- Be smart: 'Org. Whole Milk' should match 'Milk', 'Choc Chip Cookies' -> 'Cookies'\n"
+        "- Only match if reasonably confident — skip if no good match exists\n"
+        "- Each shopping list item can only be matched once (use the best receipt item)\n"
+        "- Use total_price as the price\n\n"
+        "Return ONLY a valid JSON array, no explanation:\n"
+        "[\n"
+        "  {\n"
+        '    "receipt_item_index": 0,\n'
+        '    "list_item_id": "...",\n'
+        '    "matched_receipt_line": "original_name from receipt",\n'
+        '    "price": 1.99,\n'
+        '    "confidence": "high"\n'
+        "  }\n"
+        "]"
+    )
+
+    message = UserMessage(text=prompt)
+    response = await chat.send_message(message)
+    result = _extract_json(response)
+    return result if isinstance(result, list) else []
+
+
 # ==================== AUTH ROUTES ====================
 
 @api_router.post("/auth/session")
