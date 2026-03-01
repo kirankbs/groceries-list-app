@@ -1312,7 +1312,7 @@ const styles = StyleSheet.create({
   catErrorText: { color: '#FF6347', fontSize: 13, marginTop: -10, marginBottom: 12 },
   colorPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
   colorCircle: { width: 34, height: 34, borderRadius: 17 },
-  colorCircleSelected: { borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.35, shadowRadius: 4, elevation: 5 },
+  colorCircleSelected: { borderWidth: 3, borderColor: '#fff', elevation: 4 },
   iconPickerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   iconCell: { width: 50, height: 50, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   workspaceItemMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
