@@ -8,7 +8,7 @@ import os
 import uuid
 
 BASE_URL = os.environ.get('EXPO_PUBLIC_BACKEND_URL', 'https://mobile-state-sync.preview.emergentagent.com').rstrip('/')
-SESSION_TOKEN = "test_session_cat_1772349224916"
+SESSION_TOKEN = "test_session_cat_backend_testing"
 WORKSPACE_ID = "88a35895-312a-41d9-9431-5b68335cc25b"
 OTHER_CATEGORY_ID = "3f214b7c-584b-471c-ac92-411d751199de"
 
