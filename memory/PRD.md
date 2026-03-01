@@ -24,6 +24,8 @@ Grocery Todo is a collaborative shopping list application that allows families a
 - **Shopping Sessions:** Multiple lists per household (weekly, party, etc.)
 - **Family Collaboration:** Real-time shared grocery lists
 - **Category-based Organization:** Customizable category system
+- **AI Receipt Scanning:** Upload a receipt photo → AI matches prices to your list automatically
+- **Expense Tracking:** Per-item prices + total spent displayed on list
 - **Cross-platform:** Android APK, iOS via Expo Go, Web preview
 
 ---
