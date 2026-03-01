@@ -35,7 +35,7 @@ export function JoinHouseholdModal({ visible, theme, onClose, onJoined }: Props)
         <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
           <View style={modalStyles.header}>
             <Text style={[modalStyles.title, { color: theme.text }]}>Join Household</Text>
-            <TouchableOpacity onPress={onClose} data-testid="close-join-household-modal">
+            <TouchableOpacity onPress={onClose} testID="close-join-household-modal">
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -47,13 +47,13 @@ export function JoinHouseholdModal({ visible, theme, onClose, onJoined }: Props)
             value={inviteCode}
             onChangeText={setInviteCode}
             autoCapitalize="none"
-            data-testid="join-household-code-input"
+            testID="join-household-code-input"
           />
           <TouchableOpacity
             style={[modalStyles.primaryButton, (!inviteCode.trim() || loading) && modalStyles.primaryButtonDisabled]}
             onPress={handleJoin}
             disabled={!inviteCode.trim() || loading}
-            data-testid="join-household-submit-btn"
+            testID="join-household-submit-btn"
           >
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={modalStyles.primaryButtonText}>Join Household</Text>}
           </TouchableOpacity>

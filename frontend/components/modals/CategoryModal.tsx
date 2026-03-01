@@ -135,12 +135,12 @@ export function CategoryModal({ visible, theme, categories, onCategoriesChanged,
                 <TouchableOpacity
                   style={[styles.addCategoryBtn, { backgroundColor: '#4CAF5015' }]}
                   onPress={() => openForm(null)}
-                  data-testid="add-category-btn"
+                  testID="add-category-btn"
                 >
                   <Ionicons name="add" size={18} color="#4CAF50" />
                   <Text style={{ color: '#4CAF50', fontWeight: '600', fontSize: 13 }}>Add</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={onClose} data-testid="close-category-modal">
+                <TouchableOpacity onPress={onClose} testID="close-category-modal">
                   <Ionicons name="close" size={24} color={theme.text} />
                 </TouchableOpacity>
               </View>
@@ -160,14 +160,14 @@ export function CategoryModal({ visible, theme, categories, onCategoriesChanged,
                       <TouchableOpacity
                         style={[styles.catActionBtn, { backgroundColor: '#2196F318' }]}
                         onPress={() => openForm(cat)}
-                        data-testid={`edit-cat-btn-${cat.id}`}
+                        testID={`edit-cat-btn-${cat.id}`}
                       >
                         <Ionicons name="pencil-outline" size={15} color="#2196F3" />
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.catActionBtn, { backgroundColor: '#FF634718' }]}
                         onPress={() => handleDelete(cat)}
-                        data-testid={`delete-cat-btn-${cat.id}`}
+                        testID={`delete-cat-btn-${cat.id}`}
                       >
                         {deleting
                           ? <ActivityIndicator size={14} color="#FF6347" />
@@ -196,7 +196,7 @@ export function CategoryModal({ visible, theme, categories, onCategoriesChanged,
                   {editingCategory ? 'Edit Category' : 'New Category'}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={onClose} data-testid="close-cat-form">
+              <TouchableOpacity onPress={onClose} testID="close-cat-form">
                 <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
@@ -226,7 +226,7 @@ export function CategoryModal({ visible, theme, categories, onCategoriesChanged,
                 value={categoryName}
                 onChangeText={t => { setCategoryName(t); setError(''); }}
                 autoFocus
-                data-testid="category-name-input"
+                testID="category-name-input"
               />
               {!!error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -266,7 +266,7 @@ export function CategoryModal({ visible, theme, categories, onCategoriesChanged,
               style={[modalStyles.primaryButton, { marginTop: 12 }, (saving || !categoryName.trim()) && modalStyles.primaryButtonDisabled]}
               onPress={handleSave}
               disabled={saving || !categoryName.trim()}
-              data-testid="save-category-btn"
+              testID="save-category-btn"
             >
               {saving
                 ? <ActivityIndicator color="#fff" size="small" />

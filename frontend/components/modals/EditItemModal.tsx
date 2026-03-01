@@ -58,7 +58,7 @@ export function EditItemModal({ visible, theme, categories, item, onItemUpdated,
         <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
           <View style={modalStyles.header}>
             <Text style={[modalStyles.title, { color: theme.text }]}>Edit Item</Text>
-            <TouchableOpacity onPress={onClose} data-testid="close-edit-item-modal">
+            <TouchableOpacity onPress={onClose} testID="close-edit-item-modal">
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -68,7 +68,7 @@ export function EditItemModal({ visible, theme, categories, item, onItemUpdated,
             style={[modalStyles.input, { backgroundColor: theme.inputBg, color: theme.text }]}
             value={name}
             onChangeText={setName}
-            data-testid="edit-item-name-input"
+            testID="edit-item-name-input"
           />
 
           <Text style={[modalStyles.inputLabel, { color: theme.textSecondary }]}>Quantity</Text>
@@ -112,7 +112,7 @@ export function EditItemModal({ visible, theme, categories, item, onItemUpdated,
             style={[modalStyles.primaryButton, (!name.trim() || updating) && modalStyles.primaryButtonDisabled]}
             onPress={handleUpdate}
             disabled={!name.trim() || updating}
-            data-testid="edit-item-submit-btn"
+            testID="edit-item-submit-btn"
           >
             {updating ? <ActivityIndicator color="#fff" /> : <Text style={modalStyles.primaryButtonText}>Save Changes</Text>}
           </TouchableOpacity>
@@ -120,7 +120,7 @@ export function EditItemModal({ visible, theme, categories, item, onItemUpdated,
           <TouchableOpacity
             style={styles.deleteRow}
             onPress={() => { onClose(); if (item) onRequestDelete(item); }}
-            data-testid="edit-item-delete-btn"
+            testID="edit-item-delete-btn"
           >
             <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
             <Text style={styles.deleteRowText}>Delete Item</Text>

@@ -40,7 +40,7 @@ export function ListsModal({ visible, theme, onClose, onCreateClick }: Props) {
         <View style={[modalStyles.content, { backgroundColor: theme.surface, maxHeight: '80%' as any }]}>
           <View style={modalStyles.header}>
             <Text style={[modalStyles.title, { color: theme.text }]}>Shopping Lists</Text>
-            <TouchableOpacity onPress={onClose} data-testid="close-lists-modal">
+            <TouchableOpacity onPress={onClose} testID="close-lists-modal">
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -50,7 +50,7 @@ export function ListsModal({ visible, theme, onClose, onCreateClick }: Props) {
               <TouchableOpacity
                 style={styles.createListButton}
                 onPress={() => { onClose(); onCreateClick(); }}
-                data-testid="create-new-list-btn"
+                testID="create-new-list-btn"
               >
                 <Ionicons name="add-circle-outline" size={24} color="#4CAF50" />
                 <Text style={styles.createListButtonText}>Create New List</Text>
@@ -67,7 +67,7 @@ export function ListsModal({ visible, theme, onClose, onCreateClick }: Props) {
                       <TouchableOpacity
                         style={styles.listItemMain}
                         onPress={() => { setCurrentList(list as any); onClose(); }}
-                        data-testid={`list-item-${list.list_id}`}
+                        testID={`list-item-${list.list_id}`}
                       >
                         <View style={[styles.statusDot, { backgroundColor: list.status === 'in_progress' ? '#FF9800' : '#2196F3' }]} />
                         <View style={styles.listItemInfo}>
@@ -80,7 +80,7 @@ export function ListsModal({ visible, theme, onClose, onCreateClick }: Props) {
                       <TouchableOpacity
                         style={styles.deleteListBtn}
                         onPress={() => handleDeleteList(list.list_id, list.name)}
-                        data-testid={`delete-list-btn-${list.list_id}`}
+                        testID={`delete-list-btn-${list.list_id}`}
                       >
                         <Ionicons name="trash-outline" size={18} color="#ff6b6b" />
                       </TouchableOpacity>
@@ -97,7 +97,7 @@ export function ListsModal({ visible, theme, onClose, onCreateClick }: Props) {
                       <TouchableOpacity
                         style={styles.listItemMain}
                         onPress={() => { setCurrentList(list as any); onClose(); }}
-                        data-testid={`completed-list-item-${list.list_id}`}
+                        testID={`completed-list-item-${list.list_id}`}
                       >
                         <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
                         <View style={styles.listItemInfo}>
@@ -107,7 +107,7 @@ export function ListsModal({ visible, theme, onClose, onCreateClick }: Props) {
                       <TouchableOpacity
                         style={styles.deleteListBtn}
                         onPress={() => handleDeleteList(list.list_id, list.name)}
-                        data-testid={`delete-completed-list-btn-${list.list_id}`}
+                        testID={`delete-completed-list-btn-${list.list_id}`}
                       >
                         <Ionicons name="trash-outline" size={18} color="#ff6b6b" />
                       </TouchableOpacity>

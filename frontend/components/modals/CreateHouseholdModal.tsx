@@ -35,7 +35,7 @@ export function CreateHouseholdModal({ visible, theme, onClose, onCreated }: Pro
         <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
           <View style={modalStyles.header}>
             <Text style={[modalStyles.title, { color: theme.text }]}>New Household</Text>
-            <TouchableOpacity onPress={onClose} data-testid="close-create-household-modal">
+            <TouchableOpacity onPress={onClose} testID="close-create-household-modal">
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -46,13 +46,13 @@ export function CreateHouseholdModal({ visible, theme, onClose, onCreated }: Pro
             placeholderTextColor={theme.textSecondary}
             value={name}
             onChangeText={setName}
-            data-testid="create-household-name-input"
+            testID="create-household-name-input"
           />
           <TouchableOpacity
             style={[modalStyles.primaryButton, (!name.trim() || loading) && modalStyles.primaryButtonDisabled]}
             onPress={handleCreate}
             disabled={!name.trim() || loading}
-            data-testid="create-household-submit-btn"
+            testID="create-household-submit-btn"
           >
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={modalStyles.primaryButtonText}>Create Household</Text>}
           </TouchableOpacity>

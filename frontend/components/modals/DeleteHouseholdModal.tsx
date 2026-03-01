@@ -43,7 +43,7 @@ export function DeleteHouseholdModal({ visible, theme, household, onClose, onDel
             <TouchableOpacity
               style={[styles.btn, { backgroundColor: theme.inputBg }]}
               onPress={onClose}
-              data-testid="cancel-delete-household-btn"
+              testID="cancel-delete-household-btn"
             >
               <Text style={[styles.btnText, { color: theme.text }]}>Cancel</Text>
             </TouchableOpacity>
@@ -51,7 +51,7 @@ export function DeleteHouseholdModal({ visible, theme, household, onClose, onDel
               style={[styles.btn, { backgroundColor: '#ff6b6b' }]}
               onPress={handleDelete}
               disabled={loading}
-              data-testid="confirm-delete-household-btn"
+              testID="confirm-delete-household-btn"
             >
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Delete</Text>}
             </TouchableOpacity>

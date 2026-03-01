@@ -224,7 +224,7 @@ export default function GroceryTodo() {
               </View>
             ))}
           </View>
-          <TouchableOpacity style={styles.googleButton} onPress={login} data-testid="google-login-btn">
+          <TouchableOpacity style={styles.googleButton} onPress={login} testID="google-login-btn">
             <Ionicons name="logo-google" size={24} color="#fff" />
             <Text style={styles.googleButtonText}>Continue with Google</Text>
           </TouchableOpacity>
@@ -245,7 +245,7 @@ export default function GroceryTodo() {
             <TouchableOpacity
               style={styles.workspaceSelector}
               onPress={() => setShowWorkspaceSwitcher(true)}
-              data-testid="household-selector-btn"
+              testID="household-selector-btn"
             >
               <Ionicons name={currentWorkspace?.type === 'personal' ? 'person' : 'people'} size={18} color="#4CAF50" />
               <Text style={[styles.workspaceName, { color: theme.text }]} numberOfLines={1}>
@@ -257,7 +257,7 @@ export default function GroceryTodo() {
               style={styles.listSelector}
               onPress={() => currentWorkspace && setShowListsModal(true)}
               disabled={!currentWorkspace}
-              data-testid="list-selector-btn"
+              testID="list-selector-btn"
             >
               <Text style={[styles.listName, { color: theme.textSecondary }]} numberOfLines={1}>
                 {currentList?.name || 'No list selected'} • {uncheckedCount} items
@@ -269,18 +269,18 @@ export default function GroceryTodo() {
             <TouchableOpacity
               style={[styles.iconButton, { backgroundColor: theme.surface }]}
               onPress={() => setShowCategoryModal(true)}
-              data-testid="categories-btn"
+              testID="categories-btn"
             >
               <Ionicons name="pricetags-outline" size={22} color={theme.text} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.iconButton, { backgroundColor: theme.surface }]}
               onPress={() => setDarkMode(!darkMode)}
-              data-testid="theme-toggle-btn"
+              testID="theme-toggle-btn"
             >
               <Ionicons name={darkMode ? 'sunny-outline' : 'moon-outline'} size={22} color={theme.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.profileButton} onPress={() => setShowProfileModal(true)} data-testid="profile-btn">
+            <TouchableOpacity style={styles.profileButton} onPress={() => setShowProfileModal(true)} testID="profile-btn">
               {user?.picture
                 ? <Image source={{ uri: user.picture }} style={styles.profileImage} />
                 : <Ionicons name="person-circle" size={32} color={theme.text} />
@@ -300,11 +300,11 @@ export default function GroceryTodo() {
                 : currentList.status === 'in_progress' ? 'In Progress' : 'Active'}
             </Text>
             {currentList.status === 'completed' ? (
-              <TouchableOpacity onPress={handleReopenList} style={styles.completeButton} data-testid="reopen-list-btn">
+              <TouchableOpacity onPress={handleReopenList} style={styles.completeButton} testID="reopen-list-btn">
                 <Text style={styles.completeButtonText}>Reopen List</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity onPress={handleCompleteList} style={styles.completeButton} data-testid="complete-list-btn">
+              <TouchableOpacity onPress={handleCompleteList} style={styles.completeButton} testID="complete-list-btn">
                 <Text style={styles.completeButtonText}>Mark Complete</Text>
               </TouchableOpacity>
             )}
@@ -320,10 +320,10 @@ export default function GroceryTodo() {
             placeholderTextColor={theme.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            data-testid="search-input"
+            testID="search-input"
           />
           {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')} data-testid="clear-search-btn">
+            <TouchableOpacity onPress={() => setSearchQuery('')} testID="clear-search-btn">
               <Ionicons name="close-circle" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
           ) : null}
@@ -351,18 +351,18 @@ export default function GroceryTodo() {
                 </View>
               )}
               renderItem={({ item }) => (
-                <View style={[styles.itemContainer, { backgroundColor: theme.surface }]} data-testid={`item-${item.id}`}>
+                <View style={[styles.itemContainer, { backgroundColor: theme.surface }]} testID={`item-${item.id}`}>
                   <TouchableOpacity
                     style={[styles.checkbox, item.checked && styles.checkboxChecked]}
                     onPress={() => toggleItem(item)}
-                    data-testid={`checkbox-${item.id}`}
+                    testID={`checkbox-${item.id}`}
                   >
                     {item.checked && <Ionicons name="checkmark" size={18} color="#fff" />}
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.itemContent}
                     onPress={() => { setEditingItem(item); setShowEditItemModal(true); }}
-                    data-testid={`edit-item-${item.id}`}
+                    testID={`edit-item-${item.id}`}
                   >
                     <Text style={[styles.itemText, { color: theme.text }, item.checked && styles.itemTextChecked]}>
                       {item.name}
@@ -376,7 +376,7 @@ export default function GroceryTodo() {
                   <TouchableOpacity
                     style={styles.deleteButton}
                     onPress={() => { setItemToDelete(item); setShowDeleteModal(true); }}
-                    data-testid={`trash-item-${item.id}`}
+                    testID={`trash-item-${item.id}`}
                   >
                     <Ionicons name="trash-outline" size={22} color="#ff6b6b" />
                   </TouchableOpacity>
@@ -398,7 +398,7 @@ export default function GroceryTodo() {
           <View style={styles.emptyContainer}>
             <Ionicons name="list-outline" size={64} color={theme.textSecondary} />
             <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Select or create a list</Text>
-            <TouchableOpacity style={styles.createListBtn} onPress={() => setShowCreateListModal(true)} data-testid="create-list-empty-btn">
+            <TouchableOpacity style={styles.createListBtn} onPress={() => setShowCreateListModal(true)} testID="create-list-empty-btn">
               <Text style={styles.createListBtnText}>Create List</Text>
             </TouchableOpacity>
           </View>
@@ -409,7 +409,7 @@ export default function GroceryTodo() {
           <TouchableOpacity
             style={[styles.fab, { bottom: Math.max(insets.bottom, 16) + 8 }]}
             onPress={() => setShowAddItemModal(true)}
-            data-testid="fab-add-item"
+            testID="fab-add-item"
           >
             <Ionicons name="add" size={32} color="#fff" />
           </TouchableOpacity>

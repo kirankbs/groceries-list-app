@@ -25,7 +25,7 @@ export function InviteCodeModal({ visible, theme, code, onClose }: Props) {
           <TouchableOpacity
             style={modalStyles.primaryButton}
             onPress={onClose}
-            data-testid="invite-code-done-btn"
+            testID="invite-code-done-btn"
           >
             <Text style={modalStyles.primaryButtonText}>Done</Text>
           </TouchableOpacity>

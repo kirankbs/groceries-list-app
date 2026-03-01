@@ -21,7 +21,7 @@ export function ProfileModal({ visible, theme, onClose, onInvite }: Props) {
         <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
           <View style={modalStyles.header}>
             <Text style={[modalStyles.title, { color: theme.text }]}>Profile</Text>
-            <TouchableOpacity onPress={onClose} data-testid="close-profile-modal">
+            <TouchableOpacity onPress={onClose} testID="close-profile-modal">
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -59,7 +59,7 @@ export function ProfileModal({ visible, theme, onClose, onInvite }: Props) {
                 <TouchableOpacity
                   style={styles.workspaceCardBtn}
                   onPress={onInvite}
-                  data-testid="profile-invite-btn"
+                  testID="profile-invite-btn"
                 >
                   <Ionicons name="share-outline" size={20} color="#4CAF50" />
                   <Text style={styles.workspaceCardBtnText}>Invite</Text>
@@ -67,7 +67,7 @@ export function ProfileModal({ visible, theme, onClose, onInvite }: Props) {
                 <TouchableOpacity
                   style={[styles.workspaceCardBtn, { borderColor: '#ff6b6b' }]}
                   onPress={() => currentWorkspace && leaveWorkspace(currentWorkspace.workspace_id)}
-                  data-testid="profile-leave-btn"
+                  testID="profile-leave-btn"
                 >
                   <Ionicons name="exit-outline" size={20} color="#ff6b6b" />
                   <Text style={[styles.workspaceCardBtnText, { color: '#ff6b6b' }]}>Leave</Text>
@@ -79,7 +79,7 @@ export function ProfileModal({ visible, theme, onClose, onInvite }: Props) {
           <TouchableOpacity
             style={styles.logoutBtn}
             onPress={logout}
-            data-testid="logout-btn"
+            testID="logout-btn"
           >
             <Ionicons name="log-out-outline" size={20} color="#ff6b6b" />
             <Text style={styles.logoutBtnText}>Sign Out</Text>

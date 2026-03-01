@@ -27,7 +27,7 @@ export function DeleteItemModal({ visible, theme, item, deleting, onClose, onCon
             <TouchableOpacity
               style={[styles.btn, { backgroundColor: theme.inputBg }]}
               onPress={onClose}
-              data-testid="cancel-delete-item-btn"
+              testID="cancel-delete-item-btn"
             >
               <Text style={[styles.btnText, { color: theme.text }]}>Cancel</Text>
             </TouchableOpacity>
@@ -35,7 +35,7 @@ export function DeleteItemModal({ visible, theme, item, deleting, onClose, onCon
               style={[styles.btn, { backgroundColor: '#ff6b6b' }]}
               onPress={onConfirm}
               disabled={deleting}
-              data-testid="confirm-delete-item-btn"
+              testID="confirm-delete-item-btn"
             >
               {deleting ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { color: '#fff' }]}>Delete</Text>}
             </TouchableOpacity>

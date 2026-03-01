@@ -23,7 +23,7 @@ export function HouseholdDetailsModal({ visible, theme, selectedHousehold, onClo
         <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
           <View style={modalStyles.header}>
             <Text style={[modalStyles.title, { color: theme.text }]}>Household Settings</Text>
-            <TouchableOpacity onPress={onClose} data-testid="close-household-details">
+            <TouchableOpacity onPress={onClose} testID="close-household-details">
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -56,7 +56,7 @@ export function HouseholdDetailsModal({ visible, theme, selectedHousehold, onClo
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: '#4CAF5015' }]}
                   onPress={() => { onClose(); onInvite(selectedHousehold); }}
-                  data-testid="household-details-invite-btn"
+                  testID="household-details-invite-btn"
                 >
                   <Ionicons name="share-outline" size={20} color="#4CAF50" />
                   <Text style={[styles.actionBtnText, { color: '#4CAF50' }]}>Invite People</Text>
@@ -66,7 +66,7 @@ export function HouseholdDetailsModal({ visible, theme, selectedHousehold, onClo
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: '#ff6b6b15' }]}
                     onPress={onDeleteRequest}
-                    data-testid="household-details-delete-btn"
+                    testID="household-details-delete-btn"
                   >
                     <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
                     <Text style={[styles.actionBtnText, { color: '#ff6b6b' }]}>Delete Household</Text>
@@ -75,7 +75,7 @@ export function HouseholdDetailsModal({ visible, theme, selectedHousehold, onClo
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: '#ff6b6b15' }]}
                     onPress={() => { leaveWorkspace(selectedHousehold.workspace_id); onClose(); }}
-                    data-testid="household-details-leave-btn"
+                    testID="household-details-leave-btn"
                   >
                     <Ionicons name="exit-outline" size={20} color="#ff6b6b" />
                     <Text style={[styles.actionBtnText, { color: '#ff6b6b' }]}>Leave Household</Text>

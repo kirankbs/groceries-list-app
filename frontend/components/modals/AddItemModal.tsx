@@ -63,7 +63,7 @@ export function AddItemModal({ visible, theme, categories, onItemAdded, onListUp
         <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
           <View style={modalStyles.header}>
             <Text style={[modalStyles.title, { color: theme.text }]}>Add Item</Text>
-            <TouchableOpacity onPress={onClose} data-testid="close-add-item-modal">
+            <TouchableOpacity onPress={onClose} testID="close-add-item-modal">
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -75,7 +75,7 @@ export function AddItemModal({ visible, theme, categories, onItemAdded, onListUp
             placeholderTextColor={theme.textSecondary}
             value={name}
             onChangeText={setName}
-            data-testid="add-item-name-input"
+            testID="add-item-name-input"
           />
 
           <Text style={[modalStyles.inputLabel, { color: theme.textSecondary }]}>Quantity</Text>
@@ -83,7 +83,7 @@ export function AddItemModal({ visible, theme, categories, onItemAdded, onListUp
             <TouchableOpacity
               style={[styles.qtyBtn, { backgroundColor: theme.inputBg }]}
               onPress={() => setQuantity(String(Math.max(1, parseInt(quantity) - 1)))}
-              data-testid="decrease-quantity-btn"
+              testID="decrease-quantity-btn"
             >
               <Ionicons name="remove" size={24} color={theme.text} />
             </TouchableOpacity>
@@ -93,12 +93,12 @@ export function AddItemModal({ visible, theme, categories, onItemAdded, onListUp
               onChangeText={setQuantity}
               keyboardType="numeric"
               textAlign="center"
-              data-testid="quantity-input"
+              testID="quantity-input"
             />
             <TouchableOpacity
               style={[styles.qtyBtn, { backgroundColor: theme.inputBg }]}
               onPress={() => setQuantity(String(parseInt(quantity || '0') + 1))}
-              data-testid="increase-quantity-btn"
+              testID="increase-quantity-btn"
             >
               <Ionicons name="add" size={24} color={theme.text} />
             </TouchableOpacity>
@@ -111,7 +111,7 @@ export function AddItemModal({ visible, theme, categories, onItemAdded, onListUp
                 key={cat.id}
                 style={[styles.categoryChip, { borderColor: cat.color }, category === cat.name && { backgroundColor: cat.color }]}
                 onPress={() => setCategory(cat.name)}
-                data-testid={`category-chip-${cat.name}`}
+                testID={`category-chip-${cat.name}`}
               >
                 <Ionicons name={cat.icon as any} size={16} color={category === cat.name ? '#fff' : cat.color} />
                 <Text style={[styles.categoryChipText, { color: category === cat.name ? '#fff' : cat.color }]}>{cat.name}</Text>
@@ -123,7 +123,7 @@ export function AddItemModal({ visible, theme, categories, onItemAdded, onListUp
             style={[modalStyles.primaryButton, (!name.trim() || adding) && modalStyles.primaryButtonDisabled]}
             onPress={handleAdd}
             disabled={!name.trim() || adding}
-            data-testid="add-item-submit-btn"
+            testID="add-item-submit-btn"
           >
             {adding ? <ActivityIndicator color="#fff" /> : <Text style={modalStyles.primaryButtonText}>Add Item</Text>}
           </TouchableOpacity>

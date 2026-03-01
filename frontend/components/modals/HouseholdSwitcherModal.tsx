@@ -24,7 +24,7 @@ export function HouseholdSwitcherModal({ visible, theme, onClose, onCreateClick,
         <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
           <View style={modalStyles.header}>
             <Text style={[modalStyles.title, { color: theme.text }]}>Households</Text>
-            <TouchableOpacity onPress={onClose} data-testid="close-household-switcher">
+            <TouchableOpacity onPress={onClose} testID="close-household-switcher">
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -37,7 +37,7 @@ export function HouseholdSwitcherModal({ visible, theme, onClose, onCreateClick,
                 <TouchableOpacity
                   style={styles.workspaceItemMain}
                   onPress={() => { setCurrentWorkspace(ws as any); onClose(); }}
-                  data-testid={`household-item-${ws.workspace_id}`}
+                  testID={`household-item-${ws.workspace_id}`}
                 >
                   <Ionicons name={ws.type === 'personal' ? 'person' : 'people'} size={24} color={ws.type === 'personal' ? '#2196F3' : '#4CAF50'} />
                   <View style={styles.workspaceItemInfo}>
@@ -53,14 +53,14 @@ export function HouseholdSwitcherModal({ visible, theme, onClose, onCreateClick,
                     <TouchableOpacity
                       style={styles.workspaceItemActionBtn}
                       onPress={() => onShowInvite(ws)}
-                      data-testid={`household-invite-${ws.workspace_id}`}
+                      testID={`household-invite-${ws.workspace_id}`}
                     >
                       <Ionicons name="share-outline" size={18} color="#4CAF50" />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.workspaceItemActionBtn}
                       onPress={() => { onShowSettings(ws); onClose(); }}
-                      data-testid={`household-settings-${ws.workspace_id}`}
+                      testID={`household-settings-${ws.workspace_id}`}
                     >
                       <Ionicons name="settings-outline" size={18} color={theme.textSecondary} />
                     </TouchableOpacity>
@@ -75,7 +75,7 @@ export function HouseholdSwitcherModal({ visible, theme, onClose, onCreateClick,
             <TouchableOpacity
               style={styles.workspaceActionBtn}
               onPress={() => { onClose(); onCreateClick(); }}
-              data-testid="create-household-btn"
+              testID="create-household-btn"
             >
               <Ionicons name="add-circle-outline" size={22} color="#4CAF50" />
               <Text style={styles.workspaceActionText}>Create Household</Text>
@@ -83,7 +83,7 @@ export function HouseholdSwitcherModal({ visible, theme, onClose, onCreateClick,
             <TouchableOpacity
               style={[styles.workspaceActionBtn, { borderColor: '#2196F3' }]}
               onPress={() => { onClose(); onJoinClick(); }}
-              data-testid="join-household-btn"
+              testID="join-household-btn"
             >
               <Ionicons name="enter-outline" size={22} color="#2196F3" />
               <Text style={[styles.workspaceActionText, { color: '#2196F3' }]}>Join Household</Text>

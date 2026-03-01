@@ -52,7 +52,7 @@ export function CreateListModal({ visible, theme, onClose, onListCreated }: Prop
         <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
           <View style={modalStyles.header}>
             <Text style={[modalStyles.title, { color: theme.text }]}>New Shopping List</Text>
-            <TouchableOpacity onPress={onClose} data-testid="close-create-list-modal">
+            <TouchableOpacity onPress={onClose} testID="close-create-list-modal">
               <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -64,7 +64,7 @@ export function CreateListModal({ visible, theme, onClose, onListCreated }: Prop
             placeholderTextColor={theme.textSecondary}
             value={name}
             onChangeText={setName}
-            data-testid="create-list-name-input"
+            testID="create-list-name-input"
           />
 
           <Text style={[modalStyles.inputLabel, { color: theme.textSecondary }]}>Create From</Text>
@@ -74,7 +74,7 @@ export function CreateListModal({ visible, theme, onClose, onListCreated }: Prop
                 key={opt.mode}
                 style={[styles.modeOption, mode === opt.mode && styles.modeOptionActive]}
                 onPress={() => setMode(opt.mode)}
-                data-testid={`create-mode-${opt.mode}`}
+                testID={`create-mode-${opt.mode}`}
               >
                 <Ionicons name={opt.icon as any} size={24} color={mode === opt.mode ? '#fff' : '#4CAF50'} />
                 <Text style={[styles.modeText, mode === opt.mode && { color: '#fff' }]}>{opt.label}</Text>
@@ -114,7 +114,7 @@ export function CreateListModal({ visible, theme, onClose, onListCreated }: Prop
             style={[modalStyles.primaryButton, (!name.trim() || loading) && modalStyles.primaryButtonDisabled]}
             onPress={handleCreate}
             disabled={!name.trim() || loading}
-            data-testid="create-list-submit-btn"
+            testID="create-list-submit-btn"
           >
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={modalStyles.primaryButtonText}>Create List</Text>}
           </TouchableOpacity>
