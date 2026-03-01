@@ -62,6 +62,42 @@ export function ReceiptScanModal({ visible, theme, listId, onClose, onPricesSave
     onClose();
   };
 
+  const pollForResult = async (receiptId: string): Promise<void> => {
+    const maxPolls = 40; // Up to 120s (40 × 3s)
+    for (let i = 0; i < maxPolls; i++) {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      const resp = await fetch(
+        `${EXPO_PUBLIC_BACKEND_URL}/api/receipts/${receiptId}`,
+        { headers: { 'Authorization': `Bearer ${sessionToken}` } }
+      );
+
+      if (!resp.ok) throw new Error('Failed to check processing status');
+
+      const data: ReceiptResult = await resp.json();
+
+      if (data.status === 'completed') {
+        if (!data.matched_items || data.matched_items.length === 0) {
+          setError('No matching items found. Make sure items on the receipt are in your list.');
+          setStep('picker');
+          return;
+        }
+        const prices: Record<string, string> = {};
+        data.matched_items.forEach(item => { prices[item.item_id] = item.price.toFixed(2); });
+        setReceiptResult(data);
+        setEditedPrices(prices);
+        setStep('review');
+        return;
+      }
+
+      if (data.status === 'failed') {
+        throw new Error(data.error_message || 'Failed to process receipt. Please try again.');
+      }
+      // still 'processing' — loop continues
+    }
+    throw new Error('Receipt processing timed out. Please try again with a clearer photo.');
+  };
+
   const pickAndUpload = async (source: 'camera' | 'library') => {
     try {
       let result: ImagePicker.ImagePickerResult;
