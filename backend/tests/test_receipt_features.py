@@ -210,16 +210,15 @@ class TestUploadReceiptEndpoint:
         """
         headers = {"Authorization": f"Bearer {SESSION_TOKEN}"}
 
-        # Create a minimal but valid 1x1 JPEG image
-        # This is a base64-encoded minimal white JPEG (10x10 pixels)
+        # Create a minimal but valid 1x1 JPEG image (verified valid base64)
         minimal_jpeg_b64 = (
-            "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U"
-            "HRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgN"
-            "DRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy"
-            "MjL/wAARCAAKAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAABgUE/8QAIhAAAgIC"
-            "AgMBAAAAAAAAAAAAAQIDBAURBiExQf/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAA"
-            "AAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AoOq6nqepzm3qmpXOpXMgw895J5JGP3LMxP8AJJ"
-            "JNfOb1q1e3be6nOze3eSSSeSSSSf/2Q=="
+            "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U"
+            "HRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA"
+            "/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9"
+            "AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0"
+            "NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipOUlZaX"
+            "mJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy"
+            "8/T19vf4+fr/2gAIAQEAAD8A+9b/2Q=="
         )
         image_data = base64.b64decode(minimal_jpeg_b64)
         image_file = io.BytesIO(image_data)
