@@ -307,15 +307,27 @@ export default function GroceryTodo() {
               {currentList.status === 'completed' ? 'Completed'
                 : currentList.status === 'in_progress' ? 'In Progress' : 'Active'}
             </Text>
-            {currentList.status === 'completed' ? (
-              <TouchableOpacity onPress={handleReopenList} style={styles.completeButton} testID="reopen-list-btn">
-                <Text style={styles.completeButtonText}>Reopen List</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={handleCompleteList} style={styles.completeButton} testID="complete-list-btn">
-                <Text style={styles.completeButtonText}>Mark Complete</Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.statusBarActions}>
+              {(currentList.status === 'in_progress' || currentList.status === 'completed') && (
+                <TouchableOpacity
+                  onPress={() => setShowReceiptScanModal(true)}
+                  style={[styles.completeButton, { backgroundColor: 'rgba(255,255,255,0.25)' }]}
+                  testID="scan-receipt-btn"
+                >
+                  <Ionicons name="camera-outline" size={14} color="#fff" style={{ marginRight: 4 }} />
+                  <Text style={styles.completeButtonText}>Scan Receipt</Text>
+                </TouchableOpacity>
+              )}
+              {currentList.status === 'completed' ? (
+                <TouchableOpacity onPress={handleReopenList} style={styles.completeButton} testID="reopen-list-btn">
+                  <Text style={styles.completeButtonText}>Reopen</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={handleCompleteList} style={styles.completeButton} testID="complete-list-btn">
+                  <Text style={styles.completeButtonText}>Mark Complete</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
 
