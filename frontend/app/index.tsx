@@ -366,7 +366,7 @@ export default function GroceryTodo() {
     setCategoryColor(cat ? cat.color : AVAILABLE_COLORS[0]);
     setCategoryIcon(cat ? cat.icon : AVAILABLE_ICONS[0]);
     setCategoryError('');
-    setShowCategoryFormModal(true);
+    setCategoryView('form');
   };
 
   const saveCategoryHandler = async () => {
