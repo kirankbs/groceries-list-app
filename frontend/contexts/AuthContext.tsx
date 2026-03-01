@@ -45,6 +45,7 @@ interface ShoppingList {
   created_from_template_id?: string;
   total_items?: number;
   checked_items?: number;
+  item_count?: number;
   created_at: string;
   completed_at?: string;
 }
