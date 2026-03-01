@@ -114,7 +114,7 @@ export function ReceiptScanModal({ visible, theme, listId, onClose, onPricesSave
           return;
         }
         result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'] as any,
           quality: 0.8,
         });
       } else {
@@ -124,7 +124,7 @@ export function ReceiptScanModal({ visible, theme, listId, onClose, onPricesSave
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'] as any,
           quality: 0.8,
         });
       }
