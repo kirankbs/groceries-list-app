@@ -1133,14 +1133,15 @@ async def get_receipt_status(receipt_id: str, request: Request):
     """Poll receipt processing status. Frontend polls this until status is 'completed' or 'failed'."""
     user = await require_auth(request)
 
-    receipt = await db.receipts.find_one(
-        {"receipt_id": receipt_id},
-        {"_id": 0, "raw_extracted_items": 0}
-    )
+    receipt = await db.receipts.find_one({"receipt_id": receipt_id}, {"_id": 0})
     if not receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
 
     await verify_list_access(user, receipt["list_id"])
+
+    # Replace raw_extracted_items with just a count to keep payload small
+    raw_items_count = len(receipt.pop("raw_extracted_items", []))
+    receipt["raw_items_count"] = raw_items_count
     return receipt
 
 
