@@ -616,15 +616,17 @@ Collections:
 
 ## 12. Known Limitations
 
-### Current Version (2.1)
+### Current Version (2.2)
 - No offline support (requires internet)
 - No push notifications yet
 - Cannot delete shopping lists from UI (only from backend)
 - No real-time sync between users
+- Two separate environments (preview dev vs. production APK) have separate databases — expected behaviour
 
 ### Technical Debt
+- `frontend/app/index.tsx` is ~1500 lines and needs to be split into smaller components (`CategoryModal`, `ItemRow`, `ListsModal`, etc.)
 - TypeScript type for `item_count` not defined in ShoppingList interface
-- Some console warnings about deprecated APIs
+- `shadow*` style props deprecated in Expo web (should migrate to `boxShadow`)
 
 ---
 
