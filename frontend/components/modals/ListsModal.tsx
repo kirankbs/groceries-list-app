@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Modal, View, Text, TouchableOpacity, ScrollView, Alert,
+  Modal, View, Text, TouchableOpacity, ScrollView, Alert, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,22 +21,17 @@ export function ListsModal({ visible, theme, onClose, onCreateClick }: Props) {
   const completedLists = lists.filter(l => l.status === 'completed');
 
   const handleDeleteList = (listId: string, listName: string) => {
-    Alert.alert(
-      'Delete List?',
-      `"${listName}" and all its items will be permanently deleted.`,
-      [
+    const message = `"${listName}" and all its items will be permanently deleted.`;
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete List?\n${message}`)) {
+        deleteList(listId).catch(console.error);
+      }
+    } else {
+      Alert.alert('Delete List?', message, [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteList(listId);
-            } catch (e) { console.error(e); }
-          },
-        },
-      ]
-    );
+        { text: 'Delete', style: 'destructive', onPress: () => deleteList(listId).catch(console.error) },
+      ]);
+    }
   };
 
   return (
