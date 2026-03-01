@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,8 +14,25 @@ interface Props {
   onDeleteRequest: () => void;
 }
 
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'AUD', 'CAD'];
+const CURRENCY_LABELS: Record<string, string> = {
+  EUR: 'EUR (€)', USD: 'USD ($)', GBP: 'GBP (£)', CHF: 'CHF (Fr.)', AUD: 'AUD (A$)', CAD: 'CAD (C$)',
+};
+
 export function HouseholdDetailsModal({ visible, theme, selectedHousehold, onClose, onInvite, onDeleteRequest }: Props) {
-  const { user, leaveWorkspace } = useAuth();
+  const { user, leaveWorkspace, updateWorkspaceCurrency } = useAuth();
+  const [savingCurrency, setSavingCurrency] = useState(false);
+
+  const handleCurrencyChange = async (currency: string) => {
+    if (!selectedHousehold) return;
+    setSavingCurrency(true);
+    try {
+      await updateWorkspaceCurrency(selectedHousehold.workspace_id, currency);
+    } catch (e) {
+      console.error(e);
+    }
+    setSavingCurrency(false);
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -51,6 +68,28 @@ export function HouseholdDetailsModal({ visible, theme, selectedHousehold, onClo
                   )}
                 </View>
               ))}
+
+              {/* Currency selector */}
+              <Text style={[modalStyles.inputLabel, { color: theme.textSecondary, marginTop: 20 }]}>
+                Currency {savingCurrency ? '(saving...)' : ''}
+              </Text>
+              <View style={styles.currencyRow}>
+                {CURRENCIES.map(c => {
+                  const active = (selectedHousehold.currency || 'EUR') === c;
+                  return (
+                    <TouchableOpacity
+                      key={c}
+                      style={[styles.currencyBtn, active && styles.currencyBtnActive]}
+                      onPress={() => handleCurrencyChange(c)}
+                      testID={`currency-btn-${c}`}
+                    >
+                      <Text style={[styles.currencyBtnText, active && styles.currencyBtnTextActive]}>
+                        {CURRENCY_LABELS[c]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
               <View style={styles.actions}>
                 <TouchableOpacity
@@ -94,6 +133,14 @@ const styles = {
   infoCard: { alignItems: 'center' as const, padding: 20, borderRadius: 12, marginBottom: 8 },
   infoName: { fontSize: 18, fontWeight: 'bold' as const, marginTop: 8 },
   infoMeta: { fontSize: 14, marginTop: 4 },
+  currencyRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8, marginBottom: 4 },
+  currencyBtn: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    borderWidth: 1, borderColor: '#ddd',
+  },
+  currencyBtnActive: { backgroundColor: '#4CAF50', borderColor: '#4CAF50' },
+  currencyBtnText: { fontSize: 13, fontWeight: '500' as const, color: '#636e72' },
+  currencyBtnTextActive: { color: '#fff' },
   actions: { marginTop: 20, gap: 12 },
   actionBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, paddingVertical: 14, borderRadius: 12, gap: 8 },
   actionBtnText: { fontSize: 16, fontWeight: '600' as const },
