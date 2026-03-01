@@ -1071,14 +1071,14 @@ export default function GroceryTodo() {
         {/* Category Form Modal (Create / Edit) */}
         <Modal visible={showCategoryFormModal} animationType="slide" transparent onRequestClose={() => setShowCategoryFormModal(false)}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+            <View style={[styles.modalContent, { backgroundColor: theme.surface, height: '85%' }]}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: theme.text }]}>{editingCategory ? 'Edit Category' : 'New Category'}</Text>
                 <TouchableOpacity onPress={() => setShowCategoryFormModal(false)} data-testid="close-cat-form">
                   <Ionicons name="close" size={24} color={theme.text} />
                 </TouchableOpacity>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 8 }}>
                 {/* Preview */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: theme.inputBg, marginBottom: 16 }}>
                   <View style={[styles.categoryListIcon, { backgroundColor: categoryColor + '25', width: 44, height: 44, borderRadius: 11 }]}>
