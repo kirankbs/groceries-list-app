@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { useNetworkStatus, useOfflineQueue, useOfflineCache } from '../hooks/useOfflineSync';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const AUTH_URL = 'https://auth.emergentagent.com/';
@@ -59,6 +60,10 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   sessionToken: string | null;
+  // Network & offline
+  isOnline: boolean;
+  pendingOfflineActions: number;
+  isSyncing: boolean;
   // Auth
   login: () => Promise<void>;
   logout: () => Promise<void>;
@@ -93,6 +98,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [templates, setTemplates] = useState<ShoppingList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+
+  // Network & offline support
+  const { isOnline, checkConnectivity } = useNetworkStatus();
+  const { queue: offlineQueue, enqueue: enqueueOffline, processQueue, clearQueue, isSyncing, pendingCount } = useOfflineQueue(sessionToken);
+  const offlineCache = useOfflineCache();
+
+  // Sync offline queue when coming back online
+  useEffect(() => {
+    if (isOnline && pendingCount > 0 && !isSyncing) {
+      processQueue();
+    }
+  }, [isOnline, pendingCount, isSyncing, processQueue]);
 
   const getStoredToken = useCallback(async (): Promise<string | null> => {
     try {
@@ -662,6 +679,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         sessionToken,
+        isOnline,
+        pendingOfflineActions: pendingCount,
+        isSyncing,
         login,
         logout,
         refreshUser,

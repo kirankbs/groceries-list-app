@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,12 @@ import {
   ScrollView,
   Image,
   Alert,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkspaceWebSocket } from '../hooks/useOfflineSync';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -75,7 +77,8 @@ export default function GroceryTodo() {
     isLoading: authLoading, isAuthenticated, login, logout, sessionToken,
     setCurrentWorkspace, createWorkspace, joinWorkspace, leaveWorkspace, deleteWorkspace,
     getInviteCode, fetchWorkspaces, setCurrentList, fetchLists, fetchTemplates,
-    createList, updateList, deleteList, saveAsTemplate
+    createList, updateList, deleteList, saveAsTemplate,
+    isOnline, pendingOfflineActions, isSyncing,
   } = useAuth();
 
   const insets = useSafeAreaInsets();
@@ -146,6 +149,61 @@ export default function GroceryTodo() {
   const [savingCategory, setSavingCategory] = useState(false);
   const [categoryError, setCategoryError] = useState('');
   const [deletingCategory, setDeletingCategory] = useState(false);
+
+  // Network status banner animation
+  const statusBannerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(statusBannerAnim, {
+      toValue: (!isOnline || isSyncing || pendingOfflineActions > 0) ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [isOnline, isSyncing, pendingOfflineActions, statusBannerAnim]);
+
+  // WebSocket real-time sync
+  const handleWsEvent = useCallback((event: any) => {
+    if (!event || !event.type) return;
+    switch (event.type) {
+      case 'item_created':
+        if (currentList && event.data?.list_id === currentList.list_id) {
+          setItems(prev => {
+            if (prev.some(i => i.id === event.data.item.id)) return prev;
+            return [event.data.item, ...prev];
+          });
+        }
+        fetchLists();
+        break;
+      case 'item_updated':
+        if (currentList && event.data?.list_id === currentList.list_id) {
+          setItems(prev => prev.map(i => i.id === event.data.item.id ? event.data.item : i));
+        }
+        fetchLists();
+        break;
+      case 'item_deleted':
+        if (currentList && event.data?.list_id === currentList.list_id) {
+          setItems(prev => prev.filter(i => i.id !== event.data.item_id));
+        }
+        fetchLists();
+        break;
+      case 'list_created':
+      case 'list_updated':
+      case 'list_deleted':
+        fetchLists();
+        break;
+      case 'category_changed':
+        fetchCategories();
+        break;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentList, fetchLists]);
+
+  const { isConnected: wsConnected } = useWorkspaceWebSocket(
+    currentWorkspace?.workspace_id || null,
+    sessionToken,
+    isOnline,
+    handleWsEvent,
+  );
 
   const theme = useMemo(() => ({
     background: darkMode ? '#121212' : '#f8f9fa',
@@ -484,6 +542,30 @@ export default function GroceryTodo() {
   return (
     <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: topPadding }]}>
       <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
+
+      {/* Network Status Banner */}
+      <Animated.View style={[styles.networkBanner, {
+        height: statusBannerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 32] }),
+        opacity: statusBannerAnim,
+        backgroundColor: !isOnline ? '#F44336' : isSyncing ? '#FF9800' : '#4CAF50',
+      }]}>
+        <Ionicons
+          name={!isOnline ? 'cloud-offline-outline' : isSyncing ? 'sync-outline' : 'checkmark-circle-outline'}
+          size={14}
+          color="#fff"
+        />
+        <Text style={styles.networkBannerText}>
+          {!isOnline
+            ? `Offline${pendingOfflineActions > 0 ? ` — ${pendingOfflineActions} pending` : ''}`
+            : isSyncing
+              ? 'Syncing changes...'
+              : pendingOfflineActions > 0
+                ? `${pendingOfflineActions} changes pending`
+                : 'Back online'
+          }
+        </Text>
+      </Animated.View>
+
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {/* Header */}
         <View style={styles.header}>
@@ -513,6 +595,7 @@ export default function GroceryTodo() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.profileButton} onPress={() => setShowProfileModal(true)}>
               {user?.picture ? <Image source={{ uri: user.picture }} style={styles.profileImage} /> : <Ionicons name="person-circle" size={32} color={theme.text} />}
+              <View style={[styles.onlineDot, { backgroundColor: isOnline ? (wsConnected ? '#4CAF50' : '#FF9800') : '#F44336' }]} />
             </TouchableOpacity>
           </View>
         </View>
@@ -1182,6 +1265,8 @@ export default function GroceryTodo() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
+  networkBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, overflow: 'hidden' },
+  networkBannerText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loginContainer: { flex: 1, justifyContent: 'center', padding: 24 },
   loginHeader: { alignItems: 'center', marginBottom: 40 },
@@ -1200,7 +1285,8 @@ const styles = StyleSheet.create({
   listName: { fontSize: 14 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconButton: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  profileButton: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
+  profileButton: { width: 40, height: 40, borderRadius: 20, overflow: 'visible', justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  onlineDot: { position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: '#fff' },
   profileImage: { width: 40, height: 40, borderRadius: 20 },
   listStatusBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginBottom: 8 },
   listStatusText: { color: '#fff', fontWeight: '600' },
