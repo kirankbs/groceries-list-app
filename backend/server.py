@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -7,11 +7,13 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict, Set
 import uuid
 from datetime import datetime, timezone, timedelta
 import httpx
 import secrets
+import json
+import asyncio
 
 
 ROOT_DIR = Path(__file__).parent
@@ -259,6 +261,99 @@ async def update_list_status(list_id: str):
             {"list_id": list_id},
             {"$set": {"status": "active"}}
         )
+
+
+# ==================== WEBSOCKET ====================
+
+class ConnectionManager:
+    """Manages WebSocket connections per workspace."""
+
+    def __init__(self):
+        # workspace_id -> set of (websocket, user_id)
+        self.active_connections: Dict[str, Set[tuple]] = {}
+
+    async def connect(self, websocket: WebSocket, workspace_id: str, user_id: str):
+        await websocket.accept()
+        if workspace_id not in self.active_connections:
+            self.active_connections[workspace_id] = set()
+        self.active_connections[workspace_id].add((websocket, user_id))
+
+    def disconnect(self, websocket: WebSocket, workspace_id: str, user_id: str):
+        if workspace_id in self.active_connections:
+            self.active_connections[workspace_id].discard((websocket, user_id))
+            if not self.active_connections[workspace_id]:
+                del self.active_connections[workspace_id]
+
+    async def broadcast_to_workspace(self, workspace_id: str, event: dict, exclude_user_id: str = None):
+        """Send event to all connections in a workspace, optionally excluding sender."""
+        if workspace_id not in self.active_connections:
+            return
+        dead_connections = []
+        for ws, uid in self.active_connections[workspace_id]:
+            if exclude_user_id and uid == exclude_user_id:
+                continue
+            try:
+                await ws.send_json(event)
+            except Exception:
+                dead_connections.append((ws, uid))
+        for conn in dead_connections:
+            self.active_connections[workspace_id].discard(conn)
+
+
+ws_manager = ConnectionManager()
+
+
+async def broadcast_event(workspace_id: str, event_type: str, data: dict, user_id: str = None):
+    """Helper to broadcast a workspace event."""
+    event = {
+        "type": event_type,
+        "workspace_id": workspace_id,
+        "data": data,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    await ws_manager.broadcast_to_workspace(workspace_id, event, exclude_user_id=user_id)
+
+
+@app.websocket("/ws/{workspace_id}")
+async def websocket_endpoint(websocket: WebSocket, workspace_id: str):
+    """WebSocket endpoint for real-time updates within a workspace."""
+    # Authenticate via query param token
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4001, reason="Missing token")
+        return
+
+    session = await db.user_sessions.find_one({"session_token": token}, {"_id": 0})
+    if not session:
+        await websocket.close(code=4001, reason="Invalid token")
+        return
+
+    expires_at = session["expires_at"]
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        await websocket.close(code=4001, reason="Token expired")
+        return
+
+    user_id = session["user_id"]
+
+    # Verify workspace access
+    workspace = await db.workspaces.find_one({"workspace_id": workspace_id}, {"_id": 0})
+    if not workspace or user_id not in workspace.get("member_ids", []):
+        await websocket.close(code=4003, reason="No access to workspace")
+        return
+
+    await ws_manager.connect(websocket, workspace_id, user_id)
+    try:
+        while True:
+            # Keep connection alive; handle pings
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket, workspace_id, user_id)
+    except Exception:
+        ws_manager.disconnect(websocket, workspace_id, user_id)
 
 
 # ==================== AUTH ROUTES ====================
@@ -614,7 +709,7 @@ async def create_shopping_list(input: ShoppingListCreate, request: Request):
     )
     
     await db.shopping_lists.insert_one(new_list.dict())
-    
+
     # Copy items if copying from existing list or template
     source_list_id = input.copy_from_list_id or input.from_template_id
     if source_list_id:
@@ -629,7 +724,8 @@ async def create_shopping_list(input: ShoppingListCreate, request: Request):
                 "created_at": datetime.now(timezone.utc)
             }
             await db.grocery_items.insert_one(new_item)
-    
+
+    await broadcast_event(input.workspace_id, "list_created", {"list": new_list.dict()}, user.user_id)
     return new_list.dict()
 
 @api_router.put("/lists/{list_id}")
@@ -653,8 +749,9 @@ async def update_shopping_list(list_id: str, input: ShoppingListUpdate, request:
     
     if update_data:
         await db.shopping_lists.update_one({"list_id": list_id}, {"$set": update_data})
-    
+
     updated = await db.shopping_lists.find_one({"list_id": list_id}, {"_id": 0})
+    await broadcast_event(shopping_list["workspace_id"], "list_updated", {"list": updated}, user.user_id)
     return updated
 
 @api_router.delete("/lists/{list_id}")
@@ -663,9 +760,14 @@ async def delete_shopping_list(list_id: str, request: Request):
     user = await require_auth(request)
     await verify_list_access(user, list_id)
     
+    shopping_list = await db.shopping_lists.find_one({"list_id": list_id}, {"_id": 0})
+    workspace_id = shopping_list["workspace_id"] if shopping_list else None
     await db.grocery_items.delete_many({"list_id": list_id})
     await db.shopping_lists.delete_one({"list_id": list_id})
-    
+
+    if workspace_id:
+        await broadcast_event(workspace_id, "list_deleted", {"list_id": list_id}, user.user_id)
+
     return {"message": "List deleted successfully"}
 
 @api_router.post("/lists/{list_id}/save-as-template")
@@ -735,6 +837,7 @@ async def create_category(input: CategoryCreate, request: Request):
         workspace_id=input.workspace_id
     )
     await db.categories.insert_one(category.dict())
+    await broadcast_event(input.workspace_id, "category_changed", {"action": "created"}, user.user_id)
     return category.dict()
 
 @api_router.put("/categories/{category_id}")
@@ -774,6 +877,7 @@ async def update_category(category_id: str, input: CategoryUpdate, request: Requ
                 )
     
     updated = await db.categories.find_one({"id": category_id}, {"_id": 0})
+    await broadcast_event(existing["workspace_id"], "category_changed", {"action": "updated"}, user.user_id)
     return updated
 
 @api_router.delete("/categories/{category_id}")
@@ -799,6 +903,7 @@ async def delete_category(category_id: str, request: Request):
         )
     
     await db.categories.delete_one({"id": category_id})
+    await broadcast_event(existing["workspace_id"], "category_changed", {"action": "deleted"}, user.user_id)
     return {"message": f"Category '{category_name}' deleted"}
 
 
@@ -834,10 +939,15 @@ async def create_grocery_item(input: GroceryItemCreate, request: Request):
         added_by=user.user_id
     )
     await db.grocery_items.insert_one(item.dict())
-    
+
     # Update list status
     await update_list_status(input.list_id)
-    
+
+    # Broadcast to workspace
+    shopping_list = await db.shopping_lists.find_one({"list_id": input.list_id}, {"_id": 0})
+    if shopping_list:
+        await broadcast_event(shopping_list["workspace_id"], "item_created", {"item": item.dict(), "list_id": input.list_id}, user.user_id)
+
     return item.dict()
 
 @api_router.put("/items/{item_id}")
@@ -865,12 +975,18 @@ async def update_grocery_item(item_id: str, input: GroceryItemUpdate, request: R
     
     if update_data:
         await db.grocery_items.update_one({"id": item_id}, {"$set": update_data})
-    
+
     # Update list status if checked changed
     if "checked" in update_data:
         await update_list_status(existing["list_id"])
-    
+
     updated = await db.grocery_items.find_one({"id": item_id}, {"_id": 0})
+
+    # Broadcast to workspace
+    shopping_list = await db.shopping_lists.find_one({"list_id": existing["list_id"]}, {"_id": 0})
+    if shopping_list:
+        await broadcast_event(shopping_list["workspace_id"], "item_updated", {"item": updated, "list_id": existing["list_id"]}, user.user_id)
+
     return updated
 
 @api_router.delete("/items/{item_id}")
@@ -886,17 +1002,22 @@ async def delete_grocery_item(item_id: str, request: Request):
     
     list_id = existing["list_id"]
     await db.grocery_items.delete_one({"id": item_id})
-    
+
     # Update list status
     await update_list_status(list_id)
-    
+
+    # Broadcast to workspace
+    shopping_list = await db.shopping_lists.find_one({"list_id": list_id}, {"_id": 0})
+    if shopping_list:
+        await broadcast_event(shopping_list["workspace_id"], "item_deleted", {"item_id": item_id, "list_id": list_id}, user.user_id)
+
     return {"message": "Item deleted successfully"}
 
 
 # Root endpoint
 @api_router.get("/")
 async def root():
-    return {"message": "Grocery Todo API v2.0 - Multi-Workspace Support"}
+    return {"message": "Grocery Todo API v2.1 - Multi-Workspace + Real-time Sync"}
 
 
 app.include_router(api_router)
