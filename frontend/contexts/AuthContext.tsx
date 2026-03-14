@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
@@ -64,6 +64,8 @@ interface AuthContextType {
   isOnline: boolean;
   pendingOfflineActions: number;
   isSyncing: boolean;
+  enqueueOffline: (action: { type: 'create_item' | 'update_item' | 'delete_item' | 'toggle_item'; payload: any }) => void;
+  offlineCache: ReturnType<typeof useOfflineCache>;
   // Auth
   login: () => Promise<void>;
   logout: () => Promise<void>;
@@ -105,11 +107,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const offlineCache = useOfflineCache();
 
   // Sync offline queue when coming back online
+  const wasSyncing = useRef(false);
   useEffect(() => {
     if (isOnline && pendingCount > 0 && !isSyncing) {
+      wasSyncing.current = true;
       processQueue();
     }
-  }, [isOnline, pendingCount, isSyncing, processQueue]);
+    // When sync just finished, refresh data from server
+    if (wasSyncing.current && !isSyncing && pendingCount === 0) {
+      wasSyncing.current = false;
+      // Refresh all data after sync
+      if (sessionToken) {
+        fetchUserData(sessionToken);
+      }
+    }
+  }, [isOnline, pendingCount, isSyncing, processQueue, sessionToken, fetchUserData]);
 
   const getStoredToken = useCallback(async (): Promise<string | null> => {
     try {
@@ -534,7 +546,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchLists = useCallback(async () => {
     if (!sessionToken || !currentWorkspace) return;
-    
+
     try {
       const response = await fetch(
         `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/lists`,
@@ -543,7 +555,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         setLists(data);
-        
+        offlineCache.cacheLists(currentWorkspace.workspace_id, data);
+
         // Auto-select first active list
         // Always select if currentList is null OR if currentList belongs to different workspace
         const shouldAutoSelect = !currentList || currentList.workspace_id !== currentWorkspace.workspace_id;
@@ -559,8 +572,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching lists:', error);
+      // Fallback to cache when offline
+      const cached = offlineCache.getCachedLists(currentWorkspace.workspace_id);
+      if (cached) {
+        setLists(cached);
+        const shouldAutoSelect = !currentList || currentList.workspace_id !== currentWorkspace.workspace_id;
+        if (shouldAutoSelect && cached.length > 0) {
+          const activeList = cached.find((l: ShoppingList) => l.status !== 'completed');
+          setCurrentListState(activeList || cached[0]);
+        }
+      }
     }
-  }, [sessionToken, currentWorkspace, currentList]);
+  }, [sessionToken, currentWorkspace, currentList, offlineCache]);
 
   const fetchTemplates = useCallback(async () => {
     if (!sessionToken || !currentWorkspace) return;
@@ -682,6 +705,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isOnline,
         pendingOfflineActions: pendingCount,
         isSyncing,
+        enqueueOffline,
+        offlineCache,
         login,
         logout,
         refreshUser,

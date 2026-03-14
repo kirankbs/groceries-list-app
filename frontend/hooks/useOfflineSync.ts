@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const OFFLINE_QUEUE_KEY = 'offline_queue';
-const OFFLINE_CACHE_KEY = 'offline_cache';
+const OFFLINE_CACHE_PREFIX = 'offline_cache_';
 
 // ==================== Types ====================
 
@@ -23,18 +23,34 @@ interface CacheData {
 
 // ==================== Storage Helpers ====================
 
-async function getStorageItem(key: string): Promise<string | null> {
+// Small data (queue): use SecureStore on native, localStorage on web
+async function getSmallStorageItem(key: string): Promise<string | null> {
   if (Platform.OS === 'web') {
     return localStorage.getItem(key);
   }
   return await SecureStore.getItemAsync(key);
 }
 
-async function setStorageItem(key: string, value: string): Promise<void> {
+async function setSmallStorageItem(key: string, value: string): Promise<void> {
   if (Platform.OS === 'web') {
     localStorage.setItem(key, value);
   } else {
     await SecureStore.setItemAsync(key, value);
+  }
+}
+
+// Large data (cache): use localStorage on web, in-memory only on native
+// SecureStore has a 2KB limit per key which is too small for cached data
+function getCacheItem(key: string): string | null {
+  if (Platform.OS === 'web') {
+    try { return localStorage.getItem(key); } catch { return null; }
+  }
+  return null; // Native: in-memory only (handled by ref)
+}
+
+function setCacheItem(key: string, value: string): void {
+  if (Platform.OS === 'web') {
+    try { localStorage.setItem(key, value); } catch { /* quota exceeded, ignore */ }
   }
 }
 
@@ -91,7 +107,7 @@ export function useOfflineQueue(sessionToken: string | null) {
   useEffect(() => {
     (async () => {
       try {
-        const stored = await getStorageItem(OFFLINE_QUEUE_KEY);
+        const stored = await getSmallStorageItem(OFFLINE_QUEUE_KEY);
         if (stored) setQueue(JSON.parse(stored));
       } catch { /* ignore */ }
     })();
@@ -101,7 +117,7 @@ export function useOfflineQueue(sessionToken: string | null) {
   useEffect(() => {
     (async () => {
       try {
-        await setStorageItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+        await setSmallStorageItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
       } catch { /* ignore */ }
     })();
   }, [queue]);
@@ -188,49 +204,48 @@ export function useOfflineQueue(sessionToken: string | null) {
 // ==================== Offline Cache ====================
 
 export function useOfflineCache() {
+  // In-memory cache (works on all platforms)
   const cacheRef = useRef<CacheData>({ items: {}, categories: {}, lists: {} });
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const stored = await getStorageItem(OFFLINE_CACHE_KEY);
-        if (stored) cacheRef.current = JSON.parse(stored);
-      } catch { /* ignore */ }
-    })();
+  // Load from localStorage on web
+  const loadFromStorage = useCallback((type: string, id: string): any[] | null => {
+    const stored = getCacheItem(`${OFFLINE_CACHE_PREFIX}${type}_${id}`);
+    if (stored) {
+      try { return JSON.parse(stored); } catch { return null; }
+    }
+    return null;
   }, []);
 
-  const saveCache = useCallback(async () => {
-    try {
-      await setStorageItem(OFFLINE_CACHE_KEY, JSON.stringify(cacheRef.current));
-    } catch { /* ignore */ }
+  const saveToStorage = useCallback((type: string, id: string, data: any[]) => {
+    setCacheItem(`${OFFLINE_CACHE_PREFIX}${type}_${id}`, JSON.stringify(data));
   }, []);
 
   const cacheItems = useCallback((listId: string, items: any[]) => {
     cacheRef.current.items[listId] = items;
-    saveCache();
-  }, [saveCache]);
+    saveToStorage('items', listId, items);
+  }, [saveToStorage]);
 
   const cacheCategories = useCallback((workspaceId: string, categories: any[]) => {
     cacheRef.current.categories[workspaceId] = categories;
-    saveCache();
-  }, [saveCache]);
+    saveToStorage('categories', workspaceId, categories);
+  }, [saveToStorage]);
 
   const cacheLists = useCallback((workspaceId: string, lists: any[]) => {
     cacheRef.current.lists[workspaceId] = lists;
-    saveCache();
-  }, [saveCache]);
+    saveToStorage('lists', workspaceId, lists);
+  }, [saveToStorage]);
 
   const getCachedItems = useCallback((listId: string) => {
-    return cacheRef.current.items[listId] || null;
-  }, []);
+    return cacheRef.current.items[listId] || loadFromStorage('items', listId);
+  }, [loadFromStorage]);
 
   const getCachedCategories = useCallback((workspaceId: string) => {
-    return cacheRef.current.categories[workspaceId] || null;
-  }, []);
+    return cacheRef.current.categories[workspaceId] || loadFromStorage('categories', workspaceId);
+  }, [loadFromStorage]);
 
   const getCachedLists = useCallback((workspaceId: string) => {
-    return cacheRef.current.lists[workspaceId] || null;
-  }, []);
+    return cacheRef.current.lists[workspaceId] || loadFromStorage('lists', workspaceId);
+  }, [loadFromStorage]);
 
   return {
     cacheItems, cacheCategories, cacheLists,

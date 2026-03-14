@@ -79,6 +79,7 @@ export default function GroceryTodo() {
     getInviteCode, fetchWorkspaces, setCurrentList, fetchLists, fetchTemplates,
     createList, updateList, deleteList, saveAsTemplate,
     isOnline, pendingOfflineActions, isSyncing,
+    enqueueOffline, offlineCache,
   } = useAuth();
 
   const insets = useSafeAreaInsets();
@@ -217,18 +218,27 @@ export default function GroceryTodo() {
     return categories.find(c => c.name === name) || { name, color: '#9E9E9E', icon: 'ellipsis-horizontal-outline' };
   }, [categories]);
 
-  // Fetch categories
+  // Fetch categories (cache-aware)
   const fetchCategories = useCallback(async () => {
     if (!sessionToken || !currentWorkspace) return;
     try {
       const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/categories`, {
         headers: { 'Authorization': `Bearer ${sessionToken}` }
       });
-      if (res.ok) setCategories(await res.json());
-    } catch (e) { console.error(e); }
-  }, [sessionToken, currentWorkspace]);
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data);
+        offlineCache.cacheCategories(currentWorkspace.workspace_id, data);
+      }
+    } catch (e) {
+      console.error(e);
+      // Fallback to cache when offline
+      const cached = offlineCache.getCachedCategories(currentWorkspace.workspace_id);
+      if (cached) setCategories(cached);
+    }
+  }, [sessionToken, currentWorkspace, offlineCache]);
 
-  // Fetch items
+  // Fetch items (cache-aware)
   const fetchItems = useCallback(async () => {
     if (!sessionToken || !currentList) return;
     setLoading(true);
@@ -236,10 +246,19 @@ export default function GroceryTodo() {
       const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/lists/${currentList.list_id}/items`, {
         headers: { 'Authorization': `Bearer ${sessionToken}` }
       });
-      if (res.ok) setItems(await res.json());
-    } catch (e) { console.error(e); }
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data);
+        offlineCache.cacheItems(currentList.list_id, data);
+      }
+    } catch (e) {
+      console.error(e);
+      // Fallback to cache when offline
+      const cached = offlineCache.getCachedItems(currentList.list_id);
+      if (cached) setItems(cached);
+    }
     setLoading(false);
-  }, [sessionToken, currentList]);
+  }, [sessionToken, currentList, offlineCache]);
 
   useEffect(() => {
     if (currentWorkspace) fetchCategories();
@@ -249,28 +268,67 @@ export default function GroceryTodo() {
     if (currentList) fetchItems();
   }, [currentList, fetchItems]);
 
-  // CRUD operations
+  // Re-fetch items & lists after offline sync completes
+  const wasSyncingItems = useRef(false);
+  useEffect(() => {
+    if (isSyncing) {
+      wasSyncingItems.current = true;
+    } else if (wasSyncingItems.current && pendingOfflineActions === 0) {
+      wasSyncingItems.current = false;
+      fetchItems();
+      fetchLists();
+      fetchCategories();
+    }
+  }, [isSyncing, pendingOfflineActions, fetchItems, fetchLists, fetchCategories]);
+
+  // CRUD operations (with optimistic updates + offline queue)
   const addItem = async () => {
     if (!newItemName.trim() || !currentList) return;
     setAdding(true);
+
+    const payload = { list_id: currentList.list_id, name: newItemName.trim(), quantity: parseInt(newItemQuantity) || 1, category: newItemCategory };
+    // Optimistic: create a temporary item immediately
+    const tempId = `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const optimisticItem: GroceryItem = {
+      id: tempId,
+      list_id: currentList.list_id,
+      name: payload.name,
+      quantity: payload.quantity,
+      category: payload.category,
+      checked: false,
+    };
+    setItems(prev => [optimisticItem, ...prev]);
+    setNewItemName(''); setNewItemQuantity('1'); setNewItemCategory('Other');
+    setShowAddItemModal(false);
+
     try {
       const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
-        body: JSON.stringify({ list_id: currentList.list_id, name: newItemName.trim(), quantity: parseInt(newItemQuantity) || 1, category: newItemCategory })
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         const item = await res.json();
-        setItems(prev => [item, ...prev]);
-        setNewItemName(''); setNewItemQuantity('1'); setNewItemCategory('Other');
-        setShowAddItemModal(false);
+        // Replace optimistic item with real server item
+        setItems(prev => prev.map(i => i.id === tempId ? item : i));
         fetchLists();
+      } else {
+        // Remove optimistic item on server error
+        setItems(prev => prev.filter(i => i.id !== tempId));
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      // Offline: keep optimistic item and queue the action
+      console.error(e);
+      enqueueOffline({ type: 'create_item', payload });
+    }
     setAdding(false);
   };
 
   const toggleItem = async (item: GroceryItem) => {
+    // Optimistic update immediately
+    const toggled = { ...item, checked: !item.checked };
+    setItems(prev => prev.map(i => i.id === item.id ? toggled : i));
+
     try {
       const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/items/${item.id}`, {
         method: 'PUT',
@@ -282,41 +340,63 @@ export default function GroceryTodo() {
         setItems(prev => prev.map(i => i.id === item.id ? updated : i));
         fetchLists();
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      // Offline: keep optimistic state and queue
+      console.error(e);
+      enqueueOffline({ type: 'toggle_item', payload: { id: item.id, data: { checked: !item.checked } } });
+    }
   };
 
   const updateItem = async () => {
     if (!editingItem || !editName.trim()) return;
     setUpdating(true);
+
+    const updateData = { name: editName.trim(), quantity: parseInt(editQuantity) || 1, category: editCategory };
+    // Optimistic update
+    const optimistic = { ...editingItem, ...updateData };
+    setItems(prev => prev.map(i => i.id === editingItem.id ? optimistic : i));
+    setShowEditItemModal(false);
+
     try {
       const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/items/${editingItem.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionToken}` },
-        body: JSON.stringify({ name: editName.trim(), quantity: parseInt(editQuantity) || 1, category: editCategory })
+        body: JSON.stringify(updateData)
       });
       if (res.ok) {
         const updated = await res.json();
         setItems(prev => prev.map(i => i.id === editingItem.id ? updated : i));
-        setShowEditItemModal(false);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      // Offline: keep optimistic state and queue
+      console.error(e);
+      enqueueOffline({ type: 'update_item', payload: { id: editingItem.id, data: updateData } });
+    }
     setUpdating(false);
   };
 
   const executeDelete = async () => {
     if (!itemToDelete) return;
     setDeleting(true);
+
+    const deletedId = itemToDelete.id;
+    // Optimistic removal
+    setItems(prev => prev.filter(i => i.id !== deletedId));
+    setShowDeleteModal(false); setItemToDelete(null);
+
     try {
-      const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/items/${itemToDelete.id}`, {
+      const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/items/${deletedId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${sessionToken}` }
       });
       if (res.ok) {
-        setItems(prev => prev.filter(i => i.id !== itemToDelete.id));
-        setShowDeleteModal(false); setItemToDelete(null);
         fetchLists();
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      // Offline: keep removal and queue
+      console.error(e);
+      enqueueOffline({ type: 'delete_item', payload: { id: deletedId } });
+    }
     setDeleting(false);
   };
 
