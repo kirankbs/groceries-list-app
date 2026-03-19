@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A collaborative grocery list app (Expo React Native frontend + FastAPI Python backend + MongoDB). Users authenticate via Google OAuth through Emergent Auth, and can manage multiple households (called "workspaces" in code, "Households" in the UI), each with multiple shopping lists and custom categories.
+A collaborative grocery list app (Expo React Native frontend + FastAPI Python backend + MongoDB). Users authenticate via email/password, and can manage multiple households (called "workspaces" in code, "Households" in the UI), each with multiple shopping lists and custom categories.
 
 ## Commands
 
@@ -65,7 +65,7 @@ cd frontend && yarn lint
 ### Backend (FastAPI + MongoDB)
 `backend/server.py` is a single-file FastAPI app with all models, helpers, and routes. The API router is mounted at `/api`. All endpoints require `Authorization: Bearer <token>` except `/api/auth/session`.
 
-**Auth flow:** The frontend opens Emergent Auth (`https://auth.emergentagent.com/`), which redirects back with a `session_id` in the URL hash. The frontend posts this to `POST /api/auth/session` (with `X-Session-ID` header), which exchanges it with Emergent's backend, upserts the user in MongoDB, and returns a session token stored for 7 days.
+**Auth flow:** Email/password based. `POST /api/auth/register` creates a new user (bcrypt-hashed password), `POST /api/auth/login` validates credentials. Both return a session token stored for 7 days. No external auth dependencies.
 
 **Key backend patterns:**
 - `require_auth(request)` — dependency that validates Bearer token and returns `User`
@@ -114,4 +114,4 @@ EXPO_PUBLIC_BACKEND_URL=<backend-url>
 
 ## Testing Notes
 
-`backend_test.py` bypasses Emergent Auth by directly inserting a test user + session token into MongoDB, then runs HTTP requests against the running backend. The `BACKEND_URL` is hardcoded to a preview URL — update it to your local backend URL before running locally.
+`backend_test.py` registers a test user via `POST /api/auth/register`, then runs HTTP requests against the running backend at `http://localhost:8001/api`.

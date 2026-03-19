@@ -14,10 +14,10 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv('/app/backend/.env')
+load_dotenv(os.path.join(os.path.dirname(__file__), 'backend', '.env'))
 
 # Configuration
-BACKEND_URL = "https://modal-android-fix.preview.emergentagent.com/api"
+BACKEND_URL = "http://localhost:8001/api"
 MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 DB_NAME = os.environ.get('DB_NAME', 'test_database')
 
@@ -34,75 +34,59 @@ class BackendTester:
         self.results = []
 
     async def setup_test_user(self):
-        """Create a test user and session directly in MongoDB"""
-        print("🔧 Setting up test user and session...")
-        
-        # Create test user
-        self.test_user_id = f"test_user_{uuid.uuid4().hex[:8]}"
-        test_user = {
-            "user_id": self.test_user_id,
-            "email": "test@example.com",
-            "name": "Test User",
-            "picture": None,
-            "personal_workspace_id": None,
-            "created_at": datetime.now(timezone.utc)
-        }
-        
-        await self.db.users.insert_one(test_user)
-        print(f"✅ Created test user: {self.test_user_id}")
-        
-        # Create personal workspace for user
-        personal_workspace_id = str(uuid.uuid4())
-        personal_workspace = {
-            "workspace_id": personal_workspace_id,
-            "name": "Test User's Personal List",
-            "type": "personal",
-            "invite_code": None,
-            "owner_id": self.test_user_id,
-            "member_ids": [self.test_user_id],
-            "created_at": datetime.now(timezone.utc)
-        }
-        await self.db.workspaces.insert_one(personal_workspace)
-        
-        # Update user with personal workspace ID
-        await self.db.users.update_one(
-            {"user_id": self.test_user_id},
-            {"$set": {"personal_workspace_id": personal_workspace_id}}
-        )
-        
-        # Create session token
-        self.session_token = f"test_session_{uuid.uuid4().hex}"
-        session_doc = {
-            "user_id": self.test_user_id,
-            "session_token": self.session_token,
-            "expires_at": datetime.now(timezone.utc) + timedelta(days=1),
-            "created_at": datetime.now(timezone.utc)
-        }
-        await self.db.user_sessions.insert_one(session_doc)
-        print(f"✅ Created session token: {self.session_token}")
+        """Register a test user via the API"""
+        print("🔧 Setting up test user via /api/auth/register...")
+
+        test_email = f"test_{uuid.uuid4().hex[:8]}@example.com"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{BACKEND_URL}/auth/register",
+                json={"email": test_email, "password": "testpass123", "name": "Test User"}
+            )
+
+        if response.status_code != 200:
+            raise Exception(f"Failed to register test user: {response.text}")
+
+        data = response.json()
+        self.session_token = data["session_token"]
+        self.test_user_id = data["user"]["user_id"]
+        print(f"✅ Registered test user: {self.test_user_id}")
 
     async def cleanup_test_data(self):
         """Clean up test data from database"""
         print("🧹 Cleaning up test data...")
-        
-        # Delete test items
-        await self.db.grocery_items.delete_many({"added_by": self.test_user_id})
-        
-        # Delete test lists
-        await self.db.shopping_lists.delete_many({"workspace_id": {"$regex": "test_"}})
-        
-        # Delete test workspaces
-        await self.db.workspaces.delete_many({"owner_id": self.test_user_id})
-        
-        # Delete test categories
-        await self.db.categories.delete_many({"workspace_id": {"$regex": "test_"}})
-        
-        # Delete test sessions
-        await self.db.user_sessions.delete_many({"user_id": self.test_user_id})
-        
-        # Delete test user
-        await self.db.users.delete_many({"user_id": self.test_user_id})
-        
+
+        # Collect all test user IDs
+        user_ids = [self.test_user_id]
+        if hasattr(self, '_second_user_id'):
+            user_ids.append(self._second_user_id)
+
+        # Find all workspaces owned by test users
+        workspaces = await self.db.workspaces.find(
+            {"owner_id": {"$in": user_ids}}, {"workspace_id": 1}
+        ).to_list(100)
+        # Also include workspaces test users are members of
+        member_workspaces = await self.db.workspaces.find(
+            {"member_ids": {"$in": user_ids}}, {"workspace_id": 1}
+        ).to_list(100)
+        ws_ids = list({w["workspace_id"] for w in workspaces + member_workspaces})
+
+        # Find all lists in those workspaces
+        if ws_ids:
+            lists = await self.db.shopping_lists.find(
+                {"workspace_id": {"$in": ws_ids}}, {"list_id": 1}
+            ).to_list(1000)
+            list_ids = [l["list_id"] for l in lists]
+            if list_ids:
+                await self.db.grocery_items.delete_many({"list_id": {"$in": list_ids}})
+            await self.db.shopping_lists.delete_many({"workspace_id": {"$in": ws_ids}})
+            await self.db.categories.delete_many({"workspace_id": {"$in": ws_ids}})
+            await self.db.workspaces.delete_many({"workspace_id": {"$in": ws_ids}})
+
+        for uid in user_ids:
+            await self.db.user_sessions.delete_many({"user_id": uid})
+            await self.db.users.delete_many({"user_id": uid})
+
         print("✅ Cleanup completed")
 
     def log_result(self, test_name, success, details=""):
@@ -198,42 +182,36 @@ class BackendTester:
     async def test_join_workspace(self):
         """Test POST /api/workspaces/join"""
         print("\n🔍 Testing POST /api/workspaces/join...")
-        
+
         if not self.invite_code:
             self.log_result("POST /api/workspaces/join", False, "No invite code available")
             return False
-        
-        # Create another test user to join the workspace
-        second_user_id = f"test_user_2_{uuid.uuid4().hex[:8]}"
-        second_user = {
-            "user_id": second_user_id,
-            "email": "test2@example.com",
-            "name": "Test User 2",
-            "picture": None,
-            "created_at": datetime.now(timezone.utc)
-        }
-        await self.db.users.insert_one(second_user)
-        
-        # Create session for second user
-        second_session_token = f"test_session_2_{uuid.uuid4().hex}"
-        session_doc = {
-            "user_id": second_user_id,
-            "session_token": second_session_token,
-            "expires_at": datetime.now(timezone.utc) + timedelta(days=1),
-            "created_at": datetime.now(timezone.utc)
-        }
-        await self.db.user_sessions.insert_one(session_doc)
-        
+
+        # Register a second user via API
+        second_email = f"test2_{uuid.uuid4().hex[:8]}@example.com"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            reg_response = await client.post(
+                f"{BACKEND_URL}/auth/register",
+                json={"email": second_email, "password": "testpass123", "name": "Test User 2"}
+            )
+
+        if reg_response.status_code != 200:
+            self.log_result("POST /api/workspaces/join", False, f"Failed to register second user: {reg_response.text}")
+            return False
+
+        reg_data = reg_response.json()
+        second_user_id = reg_data["user"]["user_id"]
+        second_session_token = reg_data["session_token"]
+        self._second_user_id = second_user_id
+
         # Test joining workspace with second user
-        join_data = {"invite_code": self.invite_code}
-        
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{BACKEND_URL}/workspaces/join",
-                json=join_data,
+                json={"invite_code": self.invite_code},
                 headers={"Authorization": f"Bearer {second_session_token}"}
             )
-        
+
         if response and response.status_code == 200:
             data = response.json()
             if second_user_id in data.get("member_ids", []):
@@ -245,7 +223,7 @@ class BackendTester:
             status = response.status_code if response else "No response"
             error = response.text if response else "No response"
             self.log_result("POST /api/workspaces/join", False, f"Status: {status}, Error: {error}")
-        
+
         return False
 
     async def test_get_workspace_lists(self):
