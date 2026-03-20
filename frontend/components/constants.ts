@@ -27,6 +27,7 @@ export const PALETTE = {
   darkOnSurface: '#e2e3dc',
   darkOnSurfaceVariant: '#c1c9bd',
   darkOutline: '#8b9389',
+  darkOutlineVariant: '#3d4a3d',
   // Status colors
   statusActive: '#1b6ef3',
   statusInProgress: '#ff9727',

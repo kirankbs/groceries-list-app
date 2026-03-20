@@ -31,7 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     primaryContainer: PALETTE.primaryContainer + '30',
     tertiary: PALETTE.tertiary,
     outline: PALETTE.darkOutline,
-    outlineVariant: PALETTE.darkOutline + '40',
+    outlineVariant: PALETTE.darkOutlineVariant,
     error: '#ffb4ab',
     isDark: true,
   } : {
