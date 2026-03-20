@@ -8,11 +8,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  useFonts, Lora_400Regular, Lora_500Medium, Lora_600SemiBold, Lora_700Bold,
-} from '@expo-google-fonts/lora';
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 import {
-  Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold,
-} from '@expo-google-fonts/nunito';
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 
 import { PALETTE, EXPO_PUBLIC_BACKEND_URL } from '../components/constants';
 import { Theme, FontMap, Category, GroceryItem } from '../components/types';
@@ -34,8 +41,14 @@ import ReceiptScanModal from '../components/modals/ReceiptScanModal';
 
 export default function GroceryTodo() {
   const [fontsLoaded] = useFonts({
-    Lora_400Regular, Lora_500Medium, Lora_600SemiBold, Lora_700Bold,
-    Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   const {
@@ -59,8 +72,6 @@ export default function GroceryTodo() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-
   const [showAddItem, setShowAddItem] = useState(false);
   const [showEditItem, setShowEditItem] = useState(false);
   const [showDeleteItem, setShowDeleteItem] = useState(false);
@@ -84,28 +95,14 @@ export default function GroceryTodo() {
   const [showReceiptScan, setShowReceiptScan] = useState(false);
 
   const font: FontMap = useMemo(() => ({
-    serif: fontsLoaded ? 'Lora_700Bold' : undefined,
-    serifMedium: fontsLoaded ? 'Lora_600SemiBold' : undefined,
-    serifRegular: fontsLoaded ? 'Lora_400Regular' : undefined,
-    body: fontsLoaded ? 'Nunito_400Regular' : undefined,
-    bodyMedium: fontsLoaded ? 'Nunito_500Medium' : undefined,
-    bodySemiBold: fontsLoaded ? 'Nunito_600SemiBold' : undefined,
-    bodyBold: fontsLoaded ? 'Nunito_700Bold' : undefined,
+    display: fontsLoaded ? 'PlusJakartaSans_700Bold' : undefined,
+    displayMedium: fontsLoaded ? 'PlusJakartaSans_600SemiBold' : undefined,
+    displayRegular: fontsLoaded ? 'PlusJakartaSans_400Regular' : undefined,
+    body: fontsLoaded ? 'Inter_400Regular' : undefined,
+    bodyMedium: fontsLoaded ? 'Inter_500Medium' : undefined,
+    bodySemiBold: fontsLoaded ? 'Inter_600SemiBold' : undefined,
+    bodyBold: fontsLoaded ? 'Inter_700Bold' : undefined,
   }), [fontsLoaded]);
-
-  const theme: Theme = useMemo(() => ({
-    background: darkMode ? PALETTE.darkBg : PALETTE.cream,
-    surface: darkMode ? PALETTE.darkSurface : '#FFFFFF',
-    text: darkMode ? PALETTE.darkText : PALETTE.warmBrown,
-    textSecondary: darkMode ? PALETTE.darkTextSec : PALETTE.cocoa,
-    inputBg: darkMode ? PALETTE.darkInput : PALETTE.parchment,
-    accent: PALETTE.terracotta,
-    accentLight: PALETTE.terracottaLight,
-    green: PALETTE.sage,
-    greenLight: PALETTE.sageLight,
-    border: darkMode ? '#3D3028' : PALETTE.linen,
-    cardShadow: darkMode ? 'transparent' : 'rgba(93, 64, 40, 0.08)',
-  }), [darkMode]);
 
   const fetchCategories = useCallback(async () => {
     if (!sessionToken || !currentWorkspace) return;
@@ -222,7 +219,7 @@ export default function GroceryTodo() {
             <View style={st.loginIconWrap}><Ionicons name="leaf" size={28} color={PALETTE.sage} /></View>
             <View style={st.loginDecoLine} />
           </View>
-          <Text style={[st.loginTitle, { fontFamily: font.serif }]}>{isRegisterMode ? 'Join the\nPantry' : 'Welcome\nBack'}</Text>
+          <Text style={[st.loginTitle, { fontFamily: font.display }]}>{isRegisterMode ? 'Join the\nPantry' : 'Welcome\nBack'}</Text>
           <Text style={[st.loginSubtitle, { fontFamily: font.body }]}>{isRegisterMode ? 'Create your account to start organizing' : 'Your groceries are waiting'}</Text>
           <View style={st.loginForm}>
             {isRegisterMode && (
@@ -270,7 +267,7 @@ export default function GroceryTodo() {
               <View style={[st.wsIconCircle, { backgroundColor: currentWorkspace?.type === 'personal' ? PALETTE.sage + '20' : PALETTE.terracotta + '20' }]}>
                 <Ionicons name={currentWorkspace?.type === 'personal' ? 'person' : 'people'} size={14} color={currentWorkspace?.type === 'personal' ? PALETTE.sage : PALETTE.terracotta} />
               </View>
-              <Text style={[st.workspaceName, { color: theme.text, fontFamily: font.serifMedium }]} numberOfLines={1}>{currentWorkspace?.name || 'Select Household'}</Text>
+              <Text style={[st.workspaceName, { color: theme.text, fontFamily: font.displayMedium }]} numberOfLines={1}>{currentWorkspace?.name || 'Select Household'}</Text>
               <Ionicons name="chevron-down" size={16} color={theme.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity style={st.listSelector} onPress={() => currentWorkspace && setShowLists(true)} disabled={!currentWorkspace}>
@@ -334,7 +331,7 @@ export default function GroceryTodo() {
                 <View style={[st.sectionIcon, { backgroundColor: section.categoryInfo.color + '18' }]}>
                   <Ionicons name={section.categoryInfo.icon as any} size={16} color={section.categoryInfo.color} />
                 </View>
-                <Text style={[st.sectionTitle, { color: section.categoryInfo.color, fontFamily: font.serifMedium }]}>{section.title}</Text>
+                <Text style={[st.sectionTitle, { color: section.categoryInfo.color, fontFamily: font.displayMedium }]}>{section.title}</Text>
                 <View style={[st.sectionBadge, { backgroundColor: section.categoryInfo.color + '15' }]}>
                   <Text style={[st.sectionBadgeText, { color: section.categoryInfo.color, fontFamily: font.bodySemiBold }]}>{section.data.length}</Text>
                 </View>
@@ -362,7 +359,7 @@ export default function GroceryTodo() {
             ListEmptyComponent={
               <View style={st.emptyContainer}>
                 <Ionicons name="basket-outline" size={56} color={PALETTE.sand} />
-                <Text style={[st.emptyTitle, { color: theme.text, fontFamily: font.serifMedium }]}>{searchQuery ? 'Nothing found' : 'Your list is empty'}</Text>
+                <Text style={[st.emptyTitle, { color: theme.text, fontFamily: font.displayMedium }]}>{searchQuery ? 'Nothing found' : 'Your list is empty'}</Text>
                 <Text style={[st.emptySubtitle, { color: theme.textSecondary, fontFamily: font.body }]}>{searchQuery ? 'Try a different search' : 'Tap + to start adding items'}</Text>
               </View>
             }
@@ -370,7 +367,7 @@ export default function GroceryTodo() {
         ) : (
           <View style={st.emptyContainer}>
             <Ionicons name="list-outline" size={56} color={PALETTE.sand} />
-            <Text style={[st.emptyTitle, { color: theme.text, fontFamily: font.serifMedium }]}>No list selected</Text>
+            <Text style={[st.emptyTitle, { color: theme.text, fontFamily: font.displayMedium }]}>No list selected</Text>
             <Text style={[st.emptySubtitle, { color: theme.textSecondary, fontFamily: font.body }]}>Pick a list or create a new one</Text>
             <TouchableOpacity style={st.emptyButton} onPress={() => setShowCreateList(true)}>
               <Text style={[st.emptyButtonText, { fontFamily: font.bodySemiBold }]}>Create List</Text>

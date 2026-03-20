@@ -1,7 +1,7 @@
 export type FontMap = {
-  serif: string | undefined;
-  serifMedium: string | undefined;
-  serifRegular: string | undefined;
+  display: string | undefined;
+  displayMedium: string | undefined;
+  displayRegular: string | undefined;
   body: string | undefined;
   bodyMedium: string | undefined;
   bodySemiBold: string | undefined;
@@ -10,16 +10,18 @@ export type FontMap = {
 
 export type Theme = {
   background: string;
+  surfaceContainer: string;
   surface: string;
   text: string;
   textSecondary: string;
   inputBg: string;
-  accent: string;
-  accentLight: string;
-  green: string;
-  greenLight: string;
-  border: string;
-  cardShadow: string;
+  primary: string;
+  primaryContainer: string;
+  tertiary: string;
+  outline: string;
+  outlineVariant: string;
+  error: string;
+  isDark: boolean;
 };
 
 export type Category = {
@@ -34,6 +36,7 @@ export type GroceryItem = {
   list_id: string;
   name: string;
   quantity: number;
+  unit: string;
   category: string;
   checked: boolean;
   price?: number;
@@ -74,3 +77,5 @@ export type ShoppingList = {
   created_at: string;
   completed_at?: string;
 };
+
+export type TabName = 'pantry' | 'lists' | 'categories' | 'settings';
