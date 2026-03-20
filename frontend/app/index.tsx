@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, SectionList,
   KeyboardAvoidingView, Platform, ActivityIndicator, SafeAreaView,
-  StatusBar, Image,
+  StatusBar, Image, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -197,9 +197,12 @@ export default function GroceryTodo() {
 
   if (authLoading || !fontsLoaded) {
     return (
-      <View style={[st.loadingContainer, { backgroundColor: PALETTE.cream }]}>
-        <Ionicons name="leaf" size={48} color={PALETTE.sage} />
-        <ActivityIndicator size="large" color={PALETTE.terracotta} style={{ marginTop: 16 }} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f9f6f5' }}>
+        <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: '#006a28', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+          <Ionicons name="leaf" size={32} color="#fff" />
+        </View>
+        <Text style={{ fontSize: 22, fontFamily: font.display, color: '#006a28', marginBottom: 4 }}>The Living Pantry</Text>
+        <ActivityIndicator size="small" color="#006a28" style={{ marginTop: 16 }} />
       </View>
     );
   }
@@ -211,48 +214,116 @@ export default function GroceryTodo() {
     };
 
     return (
-      <SafeAreaView style={[st.safeArea, { backgroundColor: PALETTE.cream }]}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f6f5' }}>
         <StatusBar barStyle="dark-content" />
-        <View style={st.loginContainer}>
-          <View style={st.loginDecoContainer}>
-            <View style={st.loginDecoLine} />
-            <View style={st.loginIconWrap}><Ionicons name="leaf" size={28} color={PALETTE.sage} /></View>
-            <View style={st.loginDecoLine} />
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 40 }} keyboardShouldPersistTaps="handled">
+          {/* Brand header */}
+          <View style={{ alignItems: 'center', marginBottom: 32 }}>
+            <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: '#006a28', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+              <Ionicons name="restaurant-outline" size={28} color="#fff" />
+            </View>
+            <Text style={{ fontSize: 28, fontFamily: font.display, color: '#006a28' }}>The Living Pantry</Text>
+            <Text style={{ fontSize: 14, fontFamily: font.body, color: '#424940', marginTop: 4, textAlign: 'center' }}>
+              Your household's shared{' '}
+              <Text style={{ color: '#006a28', fontFamily: font.bodySemiBold }}>grocery curator</Text>.
+            </Text>
           </View>
-          <Text style={[st.loginTitle, { fontFamily: font.display }]}>{isRegisterMode ? 'Join the\nPantry' : 'Welcome\nBack'}</Text>
-          <Text style={[st.loginSubtitle, { fontFamily: font.body }]}>{isRegisterMode ? 'Create your account to start organizing' : 'Your groceries are waiting'}</Text>
-          <View style={st.loginForm}>
+
+          {/* Feature chips */}
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 28 }}>
+            {[
+              { icon: 'people-outline', title: 'Collaborative Lists', desc: 'Plan meals together in real-time.' },
+              { icon: 'sync-outline', title: 'Real-time Sync', desc: 'Always up-to-date across devices.' },
+            ].map(f => (
+              <View key={f.title} style={{ flex: 1, backgroundColor: '#eae7e7', borderRadius: 16, padding: 14 }}>
+                <Ionicons name={f.icon as any} size={22} color="#006a28" />
+                <Text style={{ fontSize: 13, fontFamily: font.bodySemiBold, color: '#1a1c1a', marginTop: 8 }}>{f.title}</Text>
+                <Text style={{ fontSize: 11, fontFamily: font.body, color: '#424940', marginTop: 3 }}>{f.desc}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Smart categories banner */}
+          <View style={{ backgroundColor: '#006a28', borderRadius: 20, padding: 18, marginBottom: 28 }}>
+            <Text style={{ fontSize: 18, fontFamily: font.display, color: '#fff' }}>Smart Categories</Text>
+            <Text style={{ fontSize: 13, fontFamily: font.body, color: '#fff', opacity: 0.85, marginTop: 6 }}>
+              Items automatically sorted by grocery aisle for faster shopping trips.
+            </Text>
+          </View>
+
+          {/* Auth card */}
+          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, elevation: 2 }}>
+            <Text style={{ fontSize: 20, fontFamily: font.display, color: '#1a1c1a', textAlign: 'center', marginBottom: 4 }}>
+              {isRegisterMode ? 'Create Account' : 'Welcome Back'}
+            </Text>
+            <Text style={{ fontSize: 13, fontFamily: font.body, color: '#424940', textAlign: 'center', marginBottom: 24 }}>
+              {isRegisterMode ? 'Join the pantry community' : 'Sign in to sync your pantry lists'}
+            </Text>
+
             {isRegisterMode && (
-              <View style={st.inputGroup}>
-                <Text style={[st.inputLabel, { fontFamily: font.bodySemiBold }]}>Name</Text>
-                <TextInput style={[st.authInput, { fontFamily: font.body }]} placeholder="What should we call you?" placeholderTextColor={PALETTE.sand} value={authName} onChangeText={setAuthName} autoCapitalize="words" />
-              </View>
+              <>
+                <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: '#424940', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>NAME</Text>
+                <TextInput
+                  style={{ backgroundColor: '#eae7e7', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, fontFamily: font.body, color: '#1a1c1a', marginBottom: 16 }}
+                  placeholder="Your name"
+                  placeholderTextColor="#72796f"
+                  value={authName}
+                  onChangeText={setAuthName}
+                  autoCapitalize="words"
+                />
+              </>
             )}
-            <View style={st.inputGroup}>
-              <Text style={[st.inputLabel, { fontFamily: font.bodySemiBold }]}>Email</Text>
-              <TextInput style={[st.authInput, { fontFamily: font.body }]} placeholder="your@email.com" placeholderTextColor={PALETTE.sand} value={authEmail} onChangeText={t => { setAuthEmail(t); clearAuthError(); }} keyboardType="email-address" autoCapitalize="none" />
-            </View>
-            <View style={st.inputGroup}>
-              <Text style={[st.inputLabel, { fontFamily: font.bodySemiBold }]}>Password</Text>
-              <TextInput style={[st.authInput, { fontFamily: font.body }]} placeholder="Enter your password" placeholderTextColor={PALETTE.sand} value={authPassword} onChangeText={t => { setAuthPassword(t); clearAuthError(); }} secureTextEntry />
-            </View>
+
+            <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: '#424940', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>EMAIL ADDRESS</Text>
+            <TextInput
+              style={{ backgroundColor: '#eae7e7', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, fontFamily: font.body, color: '#1a1c1a', marginBottom: 16 }}
+              placeholder="hello@livingpantry.com"
+              placeholderTextColor="#72796f"
+              value={authEmail}
+              onChangeText={t => { setAuthEmail(t); clearAuthError(); }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: '#424940', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>PASSWORD</Text>
+            <TextInput
+              style={{ backgroundColor: '#eae7e7', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, fontFamily: font.body, color: '#1a1c1a', marginBottom: 16 }}
+              placeholder="Enter your password"
+              placeholderTextColor="#72796f"
+              value={authPassword}
+              onChangeText={t => { setAuthPassword(t); clearAuthError(); }}
+              secureTextEntry
+            />
+
             {authError && (
-              <View style={st.authErrorBox}>
-                <Ionicons name="alert-circle" size={16} color={PALETTE.rust} />
-                <Text style={[st.authErrorText, { fontFamily: font.body }]}>{authError}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#ffdad6', padding: 12, borderRadius: 12, marginBottom: 12 }}>
+                <Ionicons name="alert-circle" size={16} color="#ba1a1a" />
+                <Text style={{ color: '#ba1a1a', fontSize: 13, fontFamily: font.body, flex: 1 }}>{authError}</Text>
               </View>
             )}
-            <TouchableOpacity style={[st.authButton, authLoading && { opacity: 0.6 }]} onPress={handleAuthSubmit} disabled={authLoading}>
-              {authLoading ? <ActivityIndicator color={PALETTE.cream} /> : <Text style={[st.authButtonText, { fontFamily: font.bodyBold }]}>{isRegisterMode ? 'Create Account' : 'Sign In'}</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => { setIsRegisterMode(!isRegisterMode); clearAuthError(); }} style={st.authToggle}>
-              <Text style={[st.authToggleText, { fontFamily: font.bodyMedium }]}>
-                {isRegisterMode ? 'Already have an account? ' : "Don't have an account? "}
-                <Text style={{ color: PALETTE.terracotta, fontFamily: font.bodyBold }}>{isRegisterMode ? 'Sign In' : 'Register'}</Text>
-              </Text>
+
+            <TouchableOpacity
+              style={{ backgroundColor: '#006a28', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4, opacity: authLoading ? 0.6 : 1 }}
+              onPress={handleAuthSubmit}
+              disabled={authLoading}
+            >
+              {authLoading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={{ color: '#fff', fontSize: 16, fontFamily: font.bodyBold }}>{isRegisterMode ? 'Create Account' : 'Sign In'}</Text>}
             </TouchableOpacity>
           </View>
-        </View>
+
+          <TouchableOpacity onPress={() => { setIsRegisterMode(!isRegisterMode); clearAuthError(); }} style={{ paddingVertical: 20, alignItems: 'center' }}>
+            <Text style={{ color: '#424940', fontSize: 14, fontFamily: font.body }}>
+              {isRegisterMode ? 'Already have an account? ' : "Don't have an account? "}
+              <Text style={{ color: '#006a28', fontFamily: font.bodySemiBold }}>{isRegisterMode ? 'Sign In' : 'Register'}</Text>
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={{ textAlign: 'center', fontSize: 11, fontFamily: font.body, color: '#72796f', paddingBottom: 24 }}>
+            "The kitchen is the heart of every home; let's keep it organized."
+          </Text>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -403,23 +474,6 @@ export default function GroceryTodo() {
 const st = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loginContainer: { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
-  loginDecoContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 32, gap: 12 },
-  loginDecoLine: { flex: 1, height: 1, backgroundColor: PALETTE.linen },
-  loginIconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: PALETTE.sage + '15', justifyContent: 'center', alignItems: 'center' },
-  loginTitle: { fontSize: 36, color: PALETTE.warmBrown, marginBottom: 8, lineHeight: 42 },
-  loginSubtitle: { fontSize: 16, color: PALETTE.cocoa, marginBottom: 32, lineHeight: 22 },
-  loginForm: { gap: 0 },
-  inputGroup: { marginBottom: 16 },
-  inputLabel: { fontSize: 13, color: PALETTE.cocoa, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.8 },
-  authInput: { height: 52, backgroundColor: PALETTE.parchment, borderRadius: 14, paddingHorizontal: 16, fontSize: 16, color: PALETTE.warmBrown, borderWidth: 1, borderColor: PALETTE.linen },
-  authErrorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: PALETTE.rust + '10', padding: 12, borderRadius: 10, marginBottom: 8 },
-  authErrorText: { color: PALETTE.rust, fontSize: 14, flex: 1 },
-  authButton: { backgroundColor: PALETTE.terracotta, paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginTop: 8 },
-  authButtonText: { color: PALETTE.cream, fontSize: 17 },
-  authToggle: { paddingVertical: 16, alignItems: 'center' },
-  authToggleText: { color: PALETTE.cocoa, fontSize: 14 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, borderBottomWidth: 1 },
   wsIconCircle: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   workspaceSelector: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
