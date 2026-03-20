@@ -1,13 +1,28 @@
 import React from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  Modal, View, Text, TouchableOpacity, FlatList, ScrollView, StyleSheet,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../ThemeContext';
 import { PALETTE } from '../constants';
-import { modalStyles } from '../sharedStyles';
-import type { Theme, FontMap, Workspace, ShoppingList } from '../types';
+import type { FontMap, ShoppingList, Workspace } from '../types';
 
-interface Props {
+const LIST_COLORS = ['#006a28', '#3b82f6', '#f97316', '#9333ea', '#dc2626', '#0891b2'];
+function listColor(list: ShoppingList, index: number): string {
+  return LIST_COLORS[index % LIST_COLORS.length];
+}
+
+function statusBadge(status: string) {
+  switch (status) {
+    case 'active': return { label: 'ACTIVE', color: '#1b6ef3' };
+    case 'in_progress': return { label: 'IN PROGRESS', color: '#ff9727' };
+    case 'completed': return { label: 'COMPLETED', color: '#006a28' };
+    default: return { label: status.toUpperCase(), color: '#72796f' };
+  }
+}
+
+type Props = {
   visible: boolean;
-  theme: Theme;
   font: FontMap;
   currentWorkspace: Workspace | null;
   currentList: ShoppingList | null;
@@ -17,149 +32,109 @@ interface Props {
   onClose: () => void;
   onSelectList: (list: ShoppingList) => void;
   onCreateNew: () => void;
-}
+};
 
 export default function ListsModal({
-  visible, theme, font, currentWorkspace, currentList,
-  activeLists, completedLists, templates,
-  onClose, onSelectList, onCreateNew,
+  visible, font, currentList, activeLists, completedLists, onClose, onSelectList, onCreateNew,
 }: Props) {
+  const { theme } = useTheme();
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={modalStyles.overlay}>
-        <View style={[modalStyles.content, { backgroundColor: theme.surface, maxHeight: '80%' }]}>
-          <View style={modalStyles.header}>
-            <Text style={[modalStyles.title, { color: theme.text, fontFamily: font.serif }]}>Shopping Lists</Text>
-            <TouchableOpacity onPress={onClose} style={[modalStyles.closeBtn, { backgroundColor: theme.inputBg }]}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+        <View style={[st.sheet, { backgroundColor: theme.background }]}>
+          {/* Header */}
+          <View style={st.header}>
+            <Text style={[st.title, { color: theme.text, fontFamily: font.display }]}>Switch List</Text>
+            <TouchableOpacity onPress={onClose} style={[st.closeBtn, { backgroundColor: theme.surfaceContainer }]}>
               <Ionicons name="close" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
 
-          {currentWorkspace ? (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <TouchableOpacity style={[styles.createBtn, { borderColor: PALETTE.sage }]} onPress={onCreateNew}>
-                <Ionicons name="add-circle-outline" size={22} color={PALETTE.sage} />
-                <Text style={[styles.createBtnText, { color: PALETTE.sage, fontFamily: font.bodySemiBold }]}>
-                  Create New List
-                </Text>
-              </TouchableOpacity>
-
-              {activeLists.length > 0 && (
-                <>
-                  <Text style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: font.bodySemiBold }]}>
-                    Active
-                  </Text>
-                  {activeLists.map(list => (
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Active lists */}
+            {activeLists.length > 0 && (
+              <>
+                <Text style={[st.sectionLabel, { color: theme.textSecondary, fontFamily: font.bodySemiBold }]}>ACTIVE LISTS</Text>
+                {activeLists.map((list, idx) => {
+                  const isCurrent = currentList?.list_id === list.list_id;
+                  const badge = statusBadge(list.status);
+                  const color = listColor(list, idx);
+                  return (
                     <TouchableOpacity
                       key={list.list_id}
                       style={[
-                        styles.listItem,
-                        {
-                          borderColor: theme.border,
-                          backgroundColor: currentList?.list_id === list.list_id ? PALETTE.sage + '10' : 'transparent',
-                        },
+                        st.listRow,
+                        { backgroundColor: isCurrent ? theme.primary + '10' : theme.surface },
+                        isCurrent && { borderWidth: 1, borderColor: theme.primary + '30' },
                       ]}
                       onPress={() => onSelectList(list)}
                     >
-                      <View
-                        style={[
-                          styles.statusDot,
-                          { backgroundColor: list.status === 'in_progress' ? PALETTE.amber : PALETTE.sage },
-                        ]}
-                      />
-                      <View style={styles.listInfo}>
-                        <Text style={[styles.listName, { color: theme.text, fontFamily: font.bodyMedium }]}>
-                          {list.name}
-                        </Text>
-                        <Text style={[styles.listMeta, { color: theme.textSecondary, fontFamily: font.body }]}>
-                          {list.checked_items || 0}/{list.total_items || 0} items
-                        </Text>
+                      <View style={[st.listIcon, { backgroundColor: color + '20' }]}>
+                        <Ionicons name="basket-outline" size={20} color={color} />
                       </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>{list.name}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                          <View style={[st.statusBadge, { backgroundColor: badge.color + '18' }]}>
+                            <Text style={{ fontSize: 10, fontFamily: font.bodySemiBold, color: badge.color }}>{badge.label}</Text>
+                          </View>
+                        </View>
+                      </View>
+                      {isCurrent
+                        ? <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
+                        : <Ionicons name="chevron-forward" size={18} color={theme.outline} />
+                      }
                     </TouchableOpacity>
-                  ))}
-                </>
-              )}
+                  );
+                })}
+              </>
+            )}
 
-              {completedLists.length > 0 && (
-                <>
-                  <Text
-                    style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: font.bodySemiBold, marginTop: 16 }]}
-                  >
-                    Completed
-                  </Text>
-                  {completedLists.slice(0, 5).map(list => (
+            {/* History */}
+            {completedLists.length > 0 && (
+              <>
+                <Text style={[st.sectionLabel, { color: theme.textSecondary, fontFamily: font.bodySemiBold, marginTop: 20 }]}>HISTORY</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {completedLists.slice(0, 6).map(list => (
                     <TouchableOpacity
                       key={list.list_id}
-                      style={[styles.listItem, { borderColor: theme.border, opacity: 0.65 }]}
+                      style={[st.historyChip, { backgroundColor: theme.surfaceContainer }]}
                       onPress={() => onSelectList(list)}
                     >
-                      <Ionicons name="checkmark-circle" size={18} color={PALETTE.sage} />
-                      <View style={styles.listInfo}>
-                        <Text style={[styles.listName, { color: theme.text, fontFamily: font.bodyMedium }]}>
-                          {list.name}
-                        </Text>
-                      </View>
+                      <Text style={{ fontSize: 13, fontFamily: font.bodyMedium, color: theme.text }}>{list.name}</Text>
+                      <Text style={{ fontSize: 11, fontFamily: font.body, color: theme.textSecondary, marginTop: 2 }}>
+                        {list.item_count ?? 0} items
+                      </Text>
                     </TouchableOpacity>
                   ))}
-                </>
-              )}
+                </ScrollView>
+              </>
+            )}
 
-              {templates.length > 0 && (
-                <>
-                  <Text
-                    style={[styles.sectionTitle, { color: theme.textSecondary, fontFamily: font.bodySemiBold, marginTop: 16 }]}
-                  >
-                    Templates
-                  </Text>
-                  {templates.map(tpl => (
-                    <View key={tpl.list_id} style={[styles.listItem, { borderColor: theme.border }]}>
-                      <Ionicons name="document-outline" size={18} color={PALETTE.clay} />
-                      <View style={styles.listInfo}>
-                        <Text style={[styles.listName, { color: theme.text, fontFamily: font.bodyMedium }]}>
-                          {tpl.name}
-                        </Text>
-                        <Text style={[styles.listMeta, { color: theme.textSecondary, fontFamily: font.body }]}>
-                          {(tpl as any).item_count || 0} items
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </>
-              )}
-            </ScrollView>
-          ) : (
-            <View style={styles.empty}>
-              <Ionicons name="alert-circle-outline" size={44} color={PALETTE.sand} />
-              <Text style={[styles.emptyText, { color: theme.text, fontFamily: font.serifMedium }]}>
-                Select a household first
-              </Text>
-            </View>
-          )}
+            <TouchableOpacity
+              style={[st.createBtn, { backgroundColor: theme.primary, marginTop: 24 }]}
+              onPress={onCreateNew}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#fff" />
+              <Text style={{ color: '#fff', fontFamily: font.bodyBold, fontSize: 16 }}>Create New List</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </View>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
-  createBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    marginBottom: 16,
-    gap: 8,
-  },
-  createBtnText: { fontSize: 15 },
-  sectionTitle: { fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 },
-  listItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, gap: 10, borderWidth: 1 },
-  listInfo: { flex: 1 },
-  listName: { fontSize: 15 },
-  listMeta: { fontSize: 12 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  empty: { alignItems: 'center', paddingVertical: 60 },
-  emptyText: { fontSize: 18, marginTop: 16 },
+const st = StyleSheet.create({
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '85%', paddingBottom: 32 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  title: { fontSize: 24 },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  sectionLabel: { fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 },
+  listRow: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, marginBottom: 8, gap: 12 },
+  listIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  historyChip: { padding: 14, borderRadius: 14, marginRight: 10, minWidth: 120 },
+  createBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 14 },
 });

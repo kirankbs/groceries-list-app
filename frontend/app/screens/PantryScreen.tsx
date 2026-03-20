@@ -575,7 +575,6 @@ export default function PantryScreen({
 
       <ListsModal
         visible={showLists}
-        theme={theme}
         font={font as any}
         currentWorkspace={currentWorkspace}
         currentList={currentList}
