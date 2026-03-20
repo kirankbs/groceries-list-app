@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, SectionList,
   Platform, StatusBar, ActivityIndicator,
@@ -67,6 +67,11 @@ export default function PantryScreen({
 
   // Household details state
   const [detailsHousehold, setDetailsHousehold] = useState(currentWorkspace);
+
+  useEffect(() => {
+    setDetailsHousehold(currentWorkspace);
+  }, [currentWorkspace]);
+
   const [inviteCode, setInviteCode] = useState('');
   const [deleteHouseholdLoading, setDeleteHouseholdLoading] = useState(false);
 

@@ -31,6 +31,8 @@ import CategoriesScreen from './screens/CategoriesScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import CreateListModal from '../components/modals/CreateListModal';
 import HouseholdDetailsModal from '../components/modals/HouseholdDetailsModal';
+import InviteCodeModal from '../components/modals/InviteCodeModal';
+import DeleteHouseholdModal from '../components/modals/DeleteHouseholdModal';
 
 export default function GroceryTodo() {
   const [fontsLoaded] = useFonts({
@@ -47,13 +49,17 @@ export default function GroceryTodo() {
   const {
     user, currentWorkspace, currentList, lists, templates, setCurrentList, createList,
     isLoading: authLoading, isAuthenticated, login, register, logout, sessionToken,
-    authError, clearAuthError,
+    authError, clearAuthError, getInviteCode, leaveWorkspace, deleteWorkspace,
   } = useAuth();
 
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabName>('pantry');
   const [showCreateListFromListsTab, setShowCreateListFromListsTab] = useState(false);
   const [showHouseholdDetailsFromSettings, setShowHouseholdDetailsFromSettings] = useState(false);
+  const [showInviteCodeFromSettings, setShowInviteCodeFromSettings] = useState(false);
+  const [currentInviteCodeFromSettings, setCurrentInviteCodeFromSettings] = useState('');
+  const [showDeleteHouseholdFromSettings, setShowDeleteHouseholdFromSettings] = useState(false);
+  const [deleteHouseholdFromSettingsLoading, setDeleteHouseholdFromSettingsLoading] = useState(false);
 
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -273,7 +279,6 @@ export default function GroceryTodo() {
       <BottomTabBar activeTab={activeTab} onTabPress={setActiveTab} />
       <CreateListModal
         visible={showCreateListFromListsTab}
-        theme={theme}
         font={font}
         templates={templates}
         lists={lists}
@@ -290,9 +295,46 @@ export default function GroceryTodo() {
         household={currentWorkspace ?? null}
         userId={user?.user_id}
         onClose={() => setShowHouseholdDetailsFromSettings(false)}
-        onInvite={() => setShowHouseholdDetailsFromSettings(false)}
-        onDelete={() => setShowHouseholdDetailsFromSettings(false)}
-        onLeave={() => setShowHouseholdDetailsFromSettings(false)}
+        onInvite={async () => {
+          if (!currentWorkspace) return;
+          try {
+            const code = await getInviteCode(currentWorkspace.workspace_id);
+            setCurrentInviteCodeFromSettings(code);
+            setShowHouseholdDetailsFromSettings(false);
+            setShowInviteCodeFromSettings(true);
+          } catch { /* ignore */ }
+        }}
+        onDelete={() => {
+          setShowHouseholdDetailsFromSettings(false);
+          setShowDeleteHouseholdFromSettings(true);
+        }}
+        onLeave={async () => {
+          if (!currentWorkspace) return;
+          try { await leaveWorkspace(currentWorkspace.workspace_id); } catch { /* ignore */ }
+          setShowHouseholdDetailsFromSettings(false);
+        }}
+      />
+      <InviteCodeModal
+        visible={showInviteCodeFromSettings}
+        font={font}
+        inviteCode={currentInviteCodeFromSettings}
+        onClose={() => setShowInviteCodeFromSettings(false)}
+      />
+      <DeleteHouseholdModal
+        visible={showDeleteHouseholdFromSettings}
+        font={font}
+        householdName={currentWorkspace?.name ?? ''}
+        loading={deleteHouseholdFromSettingsLoading}
+        onClose={() => setShowDeleteHouseholdFromSettings(false)}
+        onConfirm={async () => {
+          if (!currentWorkspace) return;
+          setDeleteHouseholdFromSettingsLoading(true);
+          try {
+            await deleteWorkspace(currentWorkspace.workspace_id);
+            setShowDeleteHouseholdFromSettings(false);
+          } catch { /* ignore */ }
+          setDeleteHouseholdFromSettingsLoading(false);
+        }}
       />
     </View>
   );
