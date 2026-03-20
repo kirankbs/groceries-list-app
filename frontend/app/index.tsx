@@ -72,6 +72,8 @@ export default function GroceryTodo() {
     bodyMedium: fontsLoaded ? 'Inter_500Medium' : undefined,
     bodySemiBold: fontsLoaded ? 'Inter_600SemiBold' : undefined,
     bodyBold: fontsLoaded ? 'Inter_700Bold' : undefined,
+    serif: fontsLoaded ? 'PlusJakartaSans_700Bold' : undefined,
+    serifMedium: fontsLoaded ? 'PlusJakartaSans_500Medium' : undefined,
   }), [fontsLoaded]);
 
   const fetchCategories = useCallback(async () => {

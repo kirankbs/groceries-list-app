@@ -6,6 +6,8 @@ export type FontMap = {
   bodyMedium: string | undefined;
   bodySemiBold: string | undefined;
   bodyBold: string | undefined;
+  serif: string | undefined;
+  serifMedium: string | undefined;
 };
 
 export type Theme = {
@@ -21,6 +23,7 @@ export type Theme = {
   outline: string;
   outlineVariant: string;
   error: string;
+  border: string;
   isDark: boolean;
 };
 

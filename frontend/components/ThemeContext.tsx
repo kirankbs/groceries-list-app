@@ -33,6 +33,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     outline: PALETTE.darkOutline,
     outlineVariant: PALETTE.darkOutlineVariant,
     error: '#ffb4ab',
+    border: PALETTE.darkOutlineVariant,
     isDark: true,
   } : {
     background: PALETTE.surface,
@@ -47,6 +48,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     outline: PALETTE.outline,
     outlineVariant: PALETTE.outlineVariant,
     error: PALETTE.error,
+    border: PALETTE.outlineVariant,
     isDark: false,
   }, [isDark]);
 

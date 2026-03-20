@@ -32,6 +32,15 @@ export const PALETTE = {
   statusActive: '#1b6ef3',
   statusInProgress: '#ff9727',
   statusCompleted: '#006a28',
+  // Legacy aliases (referenced by older modals)
+  rust: '#ba1a1a',
+  sage: '#006a28',
+  sageLight: '#e6f4ea',
+  sand: '#9ca3af',
+  cream: '#fffbf7',
+  clay: '#92400e',
+  terracotta: '#f97316',
+  terracottaLight: '#fff7ed',
 };
 
 export const AVAILABLE_ICONS = [
@@ -50,6 +59,16 @@ export const AVAILABLE_COLORS = [
   '#ec4899', '#9333ea', '#7c3aed', '#2563eb', '#0891b2',
   '#06b6d4', '#059669', '#16a34a', '#65a30d', '#ca8a04',
 ];
+
+export const LIST_COLORS = ['#006a28', '#3b82f6', '#f97316', '#8b5cf6', '#ec4899', '#14b8a6'];
+
+export function getStatusBadge(status: string): { label: string; color: string; bg: string } {
+  switch (status) {
+    case 'in_progress': return { label: 'IN PROGRESS', color: PALETTE.statusInProgress, bg: PALETTE.statusInProgress + '20' };
+    case 'completed': return { label: 'DONE', color: PALETTE.statusCompleted, bg: PALETTE.statusCompleted + '15' };
+    default: return { label: 'ACTIVE', color: PALETTE.statusActive, bg: PALETTE.statusActive + '15' };
+  }
+}
 
 export const ITEM_UNITS = ['items', 'pcs', 'kg', 'g', 'lb', 'oz', 'L', 'ml', 'bags', 'boxes', 'cans', 'bottles', 'bunches'];
 
