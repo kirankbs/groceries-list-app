@@ -103,6 +103,7 @@ class GroceryItem(BaseModel):
     list_id: str
     name: str
     quantity: int = 1
+    unit: str = "items"
     category: str = "Other"
     checked: bool = False
     added_by: Optional[str] = None
@@ -114,12 +115,14 @@ class GroceryItemCreate(BaseModel):
     list_id: str
     name: str
     quantity: int = 1
+    unit: str = "items"
     category: str = "Other"
 
 class GroceryItemUpdate(BaseModel):
     checked: Optional[bool] = None
     name: Optional[str] = None
     quantity: Optional[int] = None
+    unit: Optional[str] = None
     category: Optional[str] = None
     price: Optional[float] = None
 
@@ -959,35 +962,36 @@ async def create_grocery_item(input: GroceryItemCreate, request: Request):
     """Create a new grocery item"""
     user = await require_auth(request)
     await verify_list_access(user, input.list_id)
-    
+
     if not input.name.strip():
         raise HTTPException(status_code=400, detail="Item name cannot be empty")
-    
+
     item = GroceryItem(
         list_id=input.list_id,
         name=input.name.strip(),
         quantity=max(1, input.quantity) if input.quantity else 1,
+        unit=input.unit or "items",
         category=input.category or "Other",
         added_by=user.user_id
     )
     await db.grocery_items.insert_one(item.dict())
-    
+
     # Update list status
     await update_list_status(input.list_id)
-    
+
     return item.dict()
 
 @api_router.put("/items/{item_id}")
 async def update_grocery_item(item_id: str, input: GroceryItemUpdate, request: Request):
     """Update a grocery item"""
     user = await require_auth(request)
-    
+
     existing = await db.grocery_items.find_one({"id": item_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Item not found")
-    
+
     await verify_list_access(user, existing["list_id"])
-    
+
     update_data = {}
     if input.checked is not None:
         update_data["checked"] = input.checked
@@ -997,6 +1001,8 @@ async def update_grocery_item(item_id: str, input: GroceryItemUpdate, request: R
         update_data["name"] = input.name.strip()
     if input.quantity is not None:
         update_data["quantity"] = max(1, input.quantity)
+    if input.unit is not None:
+        update_data["unit"] = input.unit
     if input.category is not None:
         update_data["category"] = input.category
     if input.price is not None:
@@ -1005,11 +1011,11 @@ async def update_grocery_item(item_id: str, input: GroceryItemUpdate, request: R
 
     if update_data:
         await db.grocery_items.update_one({"id": item_id}, {"$set": update_data})
-    
+
     # Update list status if checked changed
     if "checked" in update_data:
         await update_list_status(existing["list_id"])
-    
+
     updated = await db.grocery_items.find_one({"id": item_id}, {"_id": 0})
     return updated
 
