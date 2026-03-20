@@ -1,311 +1,184 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Modal, View, Text, TextInput, TouchableOpacity, FlatList, ScrollView,
-  ActivityIndicator, Alert, StyleSheet,
+  Modal, View, Text, TextInput, TouchableOpacity, ScrollView,
+  ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PALETTE, AVAILABLE_COLORS, AVAILABLE_ICONS, EXPO_PUBLIC_BACKEND_URL } from '../constants';
-import { modalStyles } from '../sharedStyles';
-import type { Theme, FontMap, Category, Workspace } from '../types';
+import { AVAILABLE_COLORS, AVAILABLE_ICONS, EXPO_PUBLIC_BACKEND_URL } from '../constants';
+import { useTheme } from '../ThemeContext';
+import type { FontMap, Category, Workspace } from '../types';
 
-interface Props {
+type Props = {
   visible: boolean;
-  theme: Theme;
   font: FontMap;
-  categories: Category[];
+  category: Category | null;
   sessionToken: string | null;
   currentWorkspace: Workspace | null;
   onClose: () => void;
-  onCategoriesChanged: () => void;
-}
+  onSaved: () => void;
+};
 
 export default function CategoryModal({
-  visible, theme, font, categories, sessionToken, currentWorkspace,
-  onClose, onCategoriesChanged,
+  visible, font, category, sessionToken, currentWorkspace, onClose, onSaved,
 }: Props) {
-  const [view, setView] = useState<'list' | 'form'>('list');
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-
-  const [categoryName, setCategoryName] = useState('');
-  const [categoryColor, setCategoryColor] = useState(AVAILABLE_COLORS[0]);
-  const [categoryIcon, setCategoryIcon] = useState(AVAILABLE_ICONS[0]);
-  const [categoryError, setCategoryError] = useState('');
+  const { theme } = useTheme();
+  const [name, setName] = useState('');
+  const [color, setColor] = useState(AVAILABLE_COLORS[0]);
+  const [icon, setIcon] = useState(AVAILABLE_ICONS[0]);
+  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
-  const openForm = (cat: Category | null) => {
-    setEditingCategory(cat);
-    setCategoryName(cat?.name || '');
-    setCategoryColor(cat?.color || AVAILABLE_COLORS[0]);
-    setCategoryIcon(cat?.icon || AVAILABLE_ICONS[0]);
-    setCategoryError('');
-    setView('form');
-  };
-
-  const handleClose = () => {
-    if (view === 'form') {
-      setView('list');
-    } else {
-      setView('list');
-      onClose();
+  useEffect(() => {
+    if (visible) {
+      setName(category?.name || '');
+      setColor(category?.color || AVAILABLE_COLORS[0]);
+      setIcon(category?.icon || AVAILABLE_ICONS[0]);
+      setError('');
     }
-  };
+  }, [visible, category]);
 
   const handleSave = async () => {
-    if (!categoryName.trim() || saving || !currentWorkspace) return;
+    if (!name.trim() || saving || !currentWorkspace) return;
     setSaving(true);
-    setCategoryError('');
+    setError('');
     try {
-      const url = editingCategory
-        ? `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/categories/${editingCategory.id}`
+      const url = category
+        ? `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/categories/${category.id}`
         : `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/categories`;
       const resp = await fetch(url, {
-        method: editingCategory ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({ name: categoryName.trim(), color: categoryColor, icon: categoryIcon }),
+        method: category ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({ name: name.trim(), color, icon }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
-        setCategoryError(err.detail || 'Failed to save category');
+        setError(err.detail || 'Failed to save');
         return;
       }
-      onCategoriesChanged();
-      setView('list');
+      onSaved();
     } catch {
-      setCategoryError('Network error');
+      setError('Network error');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = (cat: Category) => {
-    Alert.alert(
-      'Delete Category',
-      `Delete "${cat.name}"? Items in this category will move to "Other".`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            if (!currentWorkspace) return;
-            setDeleting(true);
-            try {
-              await fetch(
-                `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/categories/${cat.id}`,
-                {
-                  method: 'DELETE',
-                  headers: { Authorization: `Bearer ${sessionToken}` },
-                },
-              );
-              onCategoriesChanged();
-            } catch {
-              // silent
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ],
-    );
-  };
-
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <View style={modalStyles.overlay}>
-        {view === 'list' && (
-          <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
-            <View style={modalStyles.header}>
-              <Text style={[modalStyles.title, { color: theme.text, fontFamily: font.serif }]}>Categories</Text>
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <TouchableOpacity
-                  style={[styles.addBtn, { backgroundColor: PALETTE.sage + '15' }]}
-                  onPress={() => openForm(null)}
-                >
-                  <Ionicons name="add" size={16} color={PALETTE.sage} />
-                  <Text style={{ color: PALETTE.sage, fontFamily: font.bodySemiBold, fontSize: 13 }}>Add</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleClose} style={[modalStyles.closeBtn, { backgroundColor: theme.inputBg }]}>
-                  <Ionicons name="close" size={20} color={theme.text} />
-                </TouchableOpacity>
-              </View>
-            </View>
-            <FlatList
-              data={categories}
-              keyExtractor={c => c.id}
-              renderItem={({ item: cat }) => (
-                <View style={[styles.catItem, { backgroundColor: theme.inputBg }]}>
-                  <View style={[styles.catIcon, { backgroundColor: cat.color + '20' }]}>
-                    <Ionicons name={cat.icon as any} size={18} color={cat.color} />
-                  </View>
-                  <Text style={[styles.catName, { color: theme.text, fontFamily: font.bodyMedium }]}>
-                    {cat.name}
-                  </Text>
-                  {cat.name !== 'Other' && (
-                    <View style={{ flexDirection: 'row', gap: 6 }}>
-                      <TouchableOpacity
-                        style={[styles.catActionBtn, { backgroundColor: PALETTE.sage + '15' }]}
-                        onPress={() => openForm(cat)}
-                      >
-                        <Ionicons name="pencil-outline" size={14} color={PALETTE.sage} />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.catActionBtn, { backgroundColor: PALETTE.rust + '12' }]}
-                        onPress={() => handleDelete(cat)}
-                      >
-                        {deleting ? (
-                          <ActivityIndicator size={14} color={PALETTE.rust} />
-                        ) : (
-                          <Ionicons name="trash-outline" size={14} color={PALETTE.rust} />
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              )}
-              ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-            />
-          </View>
-        )}
-
-        {view === 'form' && (
-          <View style={[modalStyles.content, { backgroundColor: theme.surface, height: '90%' }]}>
-            <View style={modalStyles.header}>
-              <TouchableOpacity
-                onPress={() => setView('list')}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-              >
-                <Ionicons name="chevron-back" size={18} color={theme.text} />
-                <Text style={[modalStyles.title, { color: theme.text, fontFamily: font.serif }]}>
-                  {editingCategory ? 'Edit Category' : 'New Category'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => { setView('list'); onClose(); }}
-                style={[modalStyles.closeBtn, { backgroundColor: theme.inputBg }]}
-              >
-                <Ionicons name="close" size={20} color={theme.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              style={{ flex: 1 }}
-              contentContainerStyle={{ paddingBottom: 8 }}
-            >
-              <View style={[styles.preview, { backgroundColor: theme.inputBg }]}>
-                <View style={[styles.catIcon, { backgroundColor: categoryColor + '20', width: 44, height: 44, borderRadius: 11 }]}>
-                  <Ionicons name={categoryIcon as any} size={22} color={categoryColor} />
-                </View>
-                <Text style={{ fontSize: 16, fontFamily: font.serifMedium, color: categoryName ? theme.text : PALETTE.sand }}>
-                  {categoryName || 'Preview'}
-                </Text>
-              </View>
-
-              <Text style={[styles.formLabel, { color: theme.textSecondary, fontFamily: font.bodySemiBold }]}>
-                Name
-              </Text>
-              <TextInput
-                style={[modalStyles.input, { backgroundColor: theme.inputBg, color: theme.text, fontFamily: font.body }]}
-                placeholder="e.g., Vegetables, Electronics..."
-                placeholderTextColor={PALETTE.sand}
-                value={categoryName}
-                onChangeText={t => { setCategoryName(t); setCategoryError(''); }}
-                autoFocus
-              />
-              {!!categoryError && (
-                <Text style={[styles.errorText, { fontFamily: font.body }]}>{categoryError}</Text>
-              )}
-
-              <Text style={[styles.formLabel, { color: theme.textSecondary, fontFamily: font.bodySemiBold }]}>
-                Color
-              </Text>
-              <View style={styles.colorRow}>
-                {AVAILABLE_COLORS.map(color => (
-                  <TouchableOpacity
-                    key={color}
-                    style={[
-                      styles.colorCircle,
-                      { backgroundColor: color },
-                      categoryColor === color && styles.colorCircleSelected,
-                    ]}
-                    onPress={() => setCategoryColor(color)}
-                  />
-                ))}
-              </View>
-
-              <Text style={[styles.formLabel, { color: theme.textSecondary, fontFamily: font.bodySemiBold }]}>
-                Icon
-              </Text>
-              <View style={styles.iconGrid}>
-                {AVAILABLE_ICONS.map(icon => (
-                  <TouchableOpacity
-                    key={icon}
-                    style={[
-                      styles.iconCell,
-                      { backgroundColor: categoryIcon === icon ? categoryColor + '20' : theme.inputBg },
-                      categoryIcon === icon && { borderWidth: 2, borderColor: categoryColor },
-                    ]}
-                    onPress={() => setCategoryIcon(icon)}
-                  >
-                    <Ionicons
-                      name={icon as any}
-                      size={20}
-                      color={categoryIcon === icon ? categoryColor : theme.textSecondary}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            <TouchableOpacity
-              style={[
-                modalStyles.primaryButton,
-                { marginTop: 12 },
-                (saving || !categoryName.trim()) && modalStyles.buttonDisabled,
-              ]}
-              onPress={handleSave}
-              disabled={saving || !categoryName.trim()}
-            >
-              {saving ? (
-                <ActivityIndicator color={PALETTE.cream} size="small" />
-              ) : (
-                <Text style={[modalStyles.primaryButtonText, { fontFamily: font.bodyBold }]}>
-                  {editingCategory ? 'Save Changes' : 'Create Category'}
-                </Text>
-              )}
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+        <View style={[st.sheet, { backgroundColor: theme.background }]}>
+          {/* Header */}
+          <View style={st.header}>
+            <TouchableOpacity onPress={onClose} style={st.backBtn}>
+              <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
+            <Text style={[st.title, { color: theme.text, fontFamily: font.display }]}>
+              {category ? 'Edit Category' : 'Add Category'}
+            </Text>
+            <View style={{ width: 36 }} />
           </View>
-        )}
+
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 16 }}>
+            {/* Preview */}
+            <View style={[st.preview, { borderColor: theme.outlineVariant }]}>
+              <TouchableOpacity style={[st.previewPill, { backgroundColor: color }]}>
+                <Ionicons name={icon as any} size={16} color="#fff" />
+                <Text style={{ color: '#fff', fontFamily: font.bodyBold, fontSize: 14 }}>{name || 'Fresh Produce'}</Text>
+              </TouchableOpacity>
+              <Text style={{ color: theme.textSecondary, fontFamily: font.body, fontSize: 12, marginTop: 8 }}>
+                How it will look in your pantry
+              </Text>
+            </View>
+
+            {/* Name */}
+            <Text style={[st.label, { color: theme.textSecondary, fontFamily: font.bodySemiBold }]}>CATEGORY NAME</Text>
+            <TextInput
+              style={[st.input, { backgroundColor: theme.inputBg, color: theme.text, fontFamily: font.body }]}
+              placeholder="e.g. Organic Greens"
+              placeholderTextColor={theme.outline}
+              value={name}
+              onChangeText={t => { setName(t); setError(''); }}
+              autoFocus={!category}
+            />
+            {!!error && <Text style={[st.error, { fontFamily: font.body }]}>{error}</Text>}
+
+            {/* Color palette */}
+            <View style={st.sectionHeader}>
+              <Text style={[st.label, { color: theme.textSecondary, fontFamily: font.bodySemiBold, marginBottom: 0 }]}>VIBRANT PALETTE</Text>
+              <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: theme.primary }}>{AVAILABLE_COLORS.length} colors</Text>
+            </View>
+            <View style={[st.paletteGrid, { backgroundColor: theme.surfaceContainer }]}>
+              {AVAILABLE_COLORS.map(c => (
+                <TouchableOpacity
+                  key={c}
+                  style={[
+                    st.colorCircle,
+                    { backgroundColor: c },
+                    color === c && st.colorSelected,
+                  ]}
+                  onPress={() => setColor(c)}
+                />
+              ))}
+            </View>
+
+            {/* Icon grid */}
+            <Text style={[st.label, { color: theme.textSecondary, fontFamily: font.bodySemiBold }]}>CURATED ICON</Text>
+            <View style={[st.iconGrid, { backgroundColor: theme.surfaceContainer }]}>
+              {AVAILABLE_ICONS.map(ic => (
+                <TouchableOpacity
+                  key={ic}
+                  style={[
+                    st.iconCell,
+                    { backgroundColor: icon === ic ? color + '25' : 'transparent' },
+                    icon === ic && { borderWidth: 2, borderColor: color },
+                  ]}
+                  onPress={() => setIcon(ic)}
+                >
+                  <Ionicons
+                    name={ic as any}
+                    size={20}
+                    color={icon === ic ? color : theme.outline}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Save button */}
+          <TouchableOpacity
+            style={[st.saveBtn, { backgroundColor: theme.primary, opacity: (saving || !name.trim()) ? 0.5 : 1 }]}
+            onPress={handleSave}
+            disabled={saving || !name.trim()}
+          >
+            {saving
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <>
+                  <Ionicons name="save-outline" size={18} color="#fff" />
+                  <Text style={{ color: '#fff', fontFamily: font.bodyBold, fontSize: 16 }}>Save Category</Text>
+                </>
+            }
+          </TouchableOpacity>
+        </View>
       </View>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  catItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, gap: 10 },
-  catIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  catName: { fontSize: 15, flex: 1 },
-  catActionBtn: { width: 30, height: 30, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  preview: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, marginBottom: 16 },
-  formLabel: { fontSize: 12, marginBottom: 10, marginTop: 14, letterSpacing: 0.8, textTransform: 'uppercase' },
-  errorText: { color: PALETTE.rust, fontSize: 13, marginTop: -10, marginBottom: 12 },
-  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
-  colorCircle: { width: 34, height: 34, borderRadius: 17 },
-  colorCircleSelected: {
-    borderWidth: 3,
-    borderColor: PALETTE.cream,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+const st = StyleSheet.create({
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '95%' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 20 },
+  preview: { borderWidth: 1, borderStyle: 'dashed', borderRadius: 16, padding: 20, alignItems: 'center', marginBottom: 20 },
+  previewPill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20 },
+  label: { fontSize: 11, marginBottom: 10, marginTop: 16, letterSpacing: 0.8, textTransform: 'uppercase' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 10 },
+  input: { paddingHorizontal: 16, paddingVertical: 14, borderRadius: 14, fontSize: 16, marginBottom: 4 },
+  error: { color: '#ba1a1a', fontSize: 13, marginBottom: 8 },
+  paletteGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 14, borderRadius: 16, marginBottom: 4 },
+  colorCircle: { width: 44, height: 44, borderRadius: 22 },
+  colorSelected: { borderWidth: 3, borderColor: '#fff', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
+  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 12, borderRadius: 16, marginBottom: 4 },
   iconCell: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 14, marginTop: 16 },
 });
