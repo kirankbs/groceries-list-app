@@ -8,14 +8,22 @@ import logging
 import base64
 import json
 import asyncio
+import re
+import warnings
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Literal
 import uuid
 from datetime import datetime, timezone, timedelta
 import secrets
 import bcrypt
 import anthropic
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 ROOT_DIR = Path(__file__).parent
@@ -26,7 +34,11 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+if not ANTHROPIC_API_KEY:
+    warnings.warn("ANTHROPIC_API_KEY not set — receipt scanning will fail", RuntimeWarning)
+
+ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:8081,http://localhost:19006').split(',')
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -128,8 +140,15 @@ class GroceryItemUpdate(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: str
-    password: str
+    password: str = Field(min_length=8)
     name: str
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        if not re.match(r'^[^@]+@[^@]+\.[^@]+$', v.strip()):
+            raise ValueError('Invalid email format')
+        return v.strip().lower()
 
 class LoginRequest(BaseModel):
     email: str
@@ -258,6 +277,11 @@ async def verify_list_access(user: User, list_id: str) -> dict:
 SESSION_EXPIRY_DAYS = 7
 
 async def create_user_session(user_id: str, response: Response, replace: bool = False) -> str:
+    """
+    Creates a new session token and sets the session cookie.
+    When replace=True, all existing sessions for the user are deleted first —
+    logging in from a new device invalidates active sessions on other devices.
+    """
     session_token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_EXPIRY_DAYS)
     if replace:
@@ -270,15 +294,23 @@ async def create_user_session(user_id: str, response: Response, replace: bool = 
     })
     response.set_cookie(
         key="session_token", value=session_token,
-        httponly=True, secure=False, samesite="lax",
+        httponly=True, secure=os.environ.get('ENVIRONMENT', 'development') != 'development', samesite="lax",
         max_age=SESSION_EXPIRY_DAYS * 24 * 60 * 60, path="/"
     )
     return session_token
 
 async def update_list_status(list_id: str):
-    """Auto-update list status based on items"""
+    """
+    Recompute and persist list status based on current item checked state.
+    Skips already-completed lists — manual completion is not reversed by unchecking items.
+    Sets to 'active' when list is empty (status resets if all items are deleted).
+    """
     items = await db.grocery_items.find({"list_id": list_id}).to_list(1000)
     if not items:
+        await db.shopping_lists.update_one(
+            {"list_id": list_id},
+            {"$set": {"status": "active"}}
+        )
         return
     
     all_checked = all(item.get("checked", False) for item in items)
@@ -308,6 +340,7 @@ async def update_list_status(list_id: str):
 # ==================== CLAUDE RECEIPT HELPERS ====================
 
 def _extract_json(text: str):
+    # Claude sometimes wraps JSON in ```json blocks; strip markdown fences before parsing.
     text = text.strip()
     if "```" in text:
         parts = text.split("```")
@@ -392,6 +425,7 @@ async def process_receipt_background(receipt_id: str, list_id: str, image_base64
         raw_items = parsed.get("items", [])
         matched_items_raw = parsed.get("matched_items", [])
 
+        # Claude may return IDs for items it hallucinated; drop any that don't exist in this list.
         matched_items = []
         for match in matched_items_raw:
             list_item_id = match.get("list_item_id")
@@ -429,7 +463,7 @@ async def process_receipt_background(receipt_id: str, list_id: str, image_base64
         logger.error(f"Background receipt processing error: {str(e)}")
         await db.receipts.update_one(
             {"receipt_id": receipt_id},
-            {"$set": {"status": "failed", "error_message": str(e)}}
+            {"$set": {"status": "failed", "error_message": "Receipt processing failed. Please try again."}}
         )
 
 
@@ -491,7 +525,7 @@ async def get_me(request: Request):
     # Ensure user always has a personal workspace
     personal_ws = next((w for w in workspaces if w.get("type") == "personal"), None)
     if not personal_ws:
-        # Create a new personal workspace if none exists
+        # Migration path: users created before personal workspaces were introduced won't have one; create on demand.
         personal_workspace_id = await create_personal_workspace(user.user_id, user.name)
         # Update user with new personal workspace id
         await db.users.update_one(
@@ -876,7 +910,7 @@ async def create_category(input: CategoryCreate, request: Request):
         raise HTTPException(status_code=400, detail="Category name cannot be empty")
     
     existing = await db.categories.find_one({
-        "name": {"$regex": f"^{input.name.strip()}$", "$options": "i"},
+        "name": {"$regex": f"^{re.escape(input.name.strip())}$", "$options": "i"},
         "workspace_id": input.workspace_id
     })
     if existing:
@@ -1104,6 +1138,11 @@ async def upload_receipt(
     )
     workspace_currency = workspace.get("currency", "EUR") if workspace else "EUR"
 
+    MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+    content_length = image.size
+    if content_length and content_length > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Image too large. Maximum size is 10 MB.")
+
     image_bytes = await image.read()
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
     mime_type = "image/jpeg" if content_type in ("image/jpg", "image/jpeg") else content_type
@@ -1198,16 +1237,10 @@ app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
