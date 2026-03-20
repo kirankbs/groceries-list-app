@@ -539,6 +539,7 @@ export default function PantryScreen({
         font={font as any}
         onClose={() => setShowJoinHousehold(false)}
         onJoined={ws => { setCurrentWorkspace(ws); setShowJoinHousehold(false); }}
+        onCreateNew={() => { setShowJoinHousehold(false); setShowCreateHousehold(true); }}
       />
 
       <HouseholdDetailsModal

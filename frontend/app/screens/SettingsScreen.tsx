@@ -7,9 +7,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { PALETTE } from '../../components/constants';
 import type { FontMap } from '../../components/types';
 
-type Props = { font: FontMap };
+type Props = { font: FontMap; onOpenHouseholdDetails: () => void };
 
-export default function SettingsScreen({ font }: Props) {
+export default function SettingsScreen({ font, onOpenHouseholdDetails }: Props) {
   const { theme, colorMode, setColorMode } = useTheme();
   const { user, logout, currentWorkspace } = useAuth();
   const insets = useSafeAreaInsets();
@@ -67,13 +67,13 @@ export default function SettingsScreen({ font }: Props) {
         <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 }}>HOUSEHOLD</Text>
       </View>
       <View style={[st.menuGroup, { backgroundColor: theme.surface }]}>
-        <TouchableOpacity style={st.menuRow}>
+        <TouchableOpacity style={st.menuRow} onPress={onOpenHouseholdDetails}>
           <View style={[st.menuIcon, { backgroundColor: PALETTE.primary + '18' }]}><Ionicons name="home-outline" size={18} color={PALETTE.primary} /></View>
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Household Settings</Text>
           <Ionicons name="chevron-forward" size={18} color={theme.outline} />
         </TouchableOpacity>
         <View style={[st.divider, { backgroundColor: theme.surfaceContainer }]} />
-        <TouchableOpacity style={st.menuRow}>
+        <TouchableOpacity style={st.menuRow} onPress={onOpenHouseholdDetails}>
           <View style={[st.menuIcon, { backgroundColor: '#3b82f6' + '18' }]}><Ionicons name="people-outline" size={18} color="#3b82f6" /></View>
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Manage Members</Text>
           {memberCount > 0 && (

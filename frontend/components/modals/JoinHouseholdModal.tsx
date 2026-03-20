@@ -14,9 +14,10 @@ type Props = {
   font: FontMap;
   onClose: () => void;
   onJoined: (workspace: Workspace) => void;
+  onCreateNew?: () => void;
 };
 
-export default function JoinHouseholdModal({ visible, font, onClose, onJoined }: Props) {
+export default function JoinHouseholdModal({ visible, font, onClose, onJoined, onCreateNew }: Props) {
   const { theme } = useTheme();
   const { joinWorkspace } = useAuth();
   const [code, setCode] = useState('');
@@ -126,7 +127,7 @@ export default function JoinHouseholdModal({ visible, font, onClose, onJoined }:
           {/* Create new outline button */}
           <TouchableOpacity
             style={[styles.outlineBtn, { borderColor: PALETTE.primary }]}
-            onPress={handleClose}
+            onPress={() => { handleClose(); onCreateNew?.(); }}
           >
             <Text style={[styles.outlineBtnText, { color: PALETTE.primary, fontFamily: font.bodySemiBold }]}>
               Create New Household

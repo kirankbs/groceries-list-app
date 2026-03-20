@@ -30,6 +30,7 @@ import ListsScreen from './screens/ListsScreen';
 import CategoriesScreen from './screens/CategoriesScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import CreateListModal from '../components/modals/CreateListModal';
+import HouseholdDetailsModal from '../components/modals/HouseholdDetailsModal';
 
 export default function GroceryTodo() {
   const [fontsLoaded] = useFonts({
@@ -52,6 +53,7 @@ export default function GroceryTodo() {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabName>('pantry');
   const [showCreateListFromListsTab, setShowCreateListFromListsTab] = useState(false);
+  const [showHouseholdDetailsFromSettings, setShowHouseholdDetailsFromSettings] = useState(false);
 
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -263,7 +265,7 @@ export default function GroceryTodo() {
           <CategoriesScreen font={font} categories={categories} fetchCategories={fetchCategories} />
         )}
         {activeTab === 'settings' && (
-          <SettingsScreen font={font} />
+          <SettingsScreen font={font} onOpenHouseholdDetails={() => setShowHouseholdDetailsFromSettings(true)} />
         )}
       </View>
       <BottomTabBar activeTab={activeTab} onTabPress={setActiveTab} />
@@ -279,6 +281,16 @@ export default function GroceryTodo() {
           setShowCreateListFromListsTab(false);
           setActiveTab('pantry');
         }}
+      />
+      <HouseholdDetailsModal
+        visible={showHouseholdDetailsFromSettings}
+        font={font}
+        household={currentWorkspace ?? null}
+        userId={user?.user_id}
+        onClose={() => setShowHouseholdDetailsFromSettings(false)}
+        onInvite={() => setShowHouseholdDetailsFromSettings(false)}
+        onDelete={() => setShowHouseholdDetailsFromSettings(false)}
+        onLeave={() => setShowHouseholdDetailsFromSettings(false)}
       />
     </View>
   );
