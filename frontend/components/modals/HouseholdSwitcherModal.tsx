@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Modal, View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../ThemeContext';
 import { PALETTE } from '../constants';
-import { modalStyles } from '../sharedStyles';
-import type { Theme, FontMap, Workspace } from '../types';
+import type { FontMap, Workspace } from '../types';
 
 interface Props {
   visible: boolean;
-  theme: Theme;
   font: FontMap;
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
@@ -15,100 +14,109 @@ interface Props {
   onSelect: (ws: Workspace) => void;
   onCreateNew: () => void;
   onJoin: () => void;
-  onInvite: (ws: Workspace) => void;
-  onSettings: (ws: Workspace) => void;
 }
 
 export default function HouseholdSwitcherModal({
-  visible, theme, font, workspaces, currentWorkspace,
-  onClose, onSelect, onCreateNew, onJoin, onInvite, onSettings,
+  visible, font, workspaces, currentWorkspace,
+  onClose, onSelect, onCreateNew, onJoin,
 }: Props) {
+  const { theme } = useTheme();
+
   const isCurrent = (ws: Workspace) =>
     currentWorkspace?.workspace_id === ws.workspace_id;
 
+  const renderItem = useCallback(({ item: ws }: { item: Workspace }) => {
+    const active = isCurrent(ws);
+    return (
+      <TouchableOpacity
+        style={[
+          styles.wsRow,
+          {
+            backgroundColor: theme.background,
+            borderColor: active ? theme.primary : theme.outlineVariant,
+            borderWidth: active ? 2 : 1,
+          },
+        ]}
+        onPress={() => onSelect(ws)}
+        activeOpacity={0.75}
+      >
+        {/* Green square icon */}
+        <View style={[styles.iconSquare, { backgroundColor: PALETTE.primary }]}>
+          <Text style={[styles.iconInitial, { fontFamily: font.display }]}>
+            {ws.name.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+
+        {/* Info */}
+        <View style={styles.wsInfo}>
+          <Text style={[styles.wsName, { color: theme.text, fontFamily: font.display }]}>
+            {ws.name}
+          </Text>
+          <Text style={[styles.wsType, { color: theme.textSecondary, fontFamily: font.body }]}>
+            {ws.type === 'personal' ? 'Personal Household' : 'Shared Household'}
+          </Text>
+        </View>
+
+        {/* Right indicator */}
+        {active ? (
+          <Ionicons name="checkmark-circle" size={24} color={theme.primary} />
+        ) : (
+          <Ionicons name="chevron-forward" size={20} color={theme.outline} />
+        )}
+      </TouchableOpacity>
+    );
+  }, [currentWorkspace, onSelect, font, theme]);
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={modalStyles.overlay}>
-        <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
-          <View style={modalStyles.header}>
-            <Text style={[modalStyles.title, { color: theme.text, fontFamily: font.serif }]}>Households</Text>
-            <TouchableOpacity onPress={onClose} style={[modalStyles.closeBtn, { backgroundColor: theme.inputBg }]}>
+      <View style={styles.overlay}>
+        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
+          {/* Drag handle */}
+          <View style={[styles.handle, { backgroundColor: theme.outline + '40' }]} />
+
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: theme.text, fontFamily: font.display }]}>
+              Switch Household
+            </Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={[styles.closeBtn, { backgroundColor: theme.surfaceContainer }]}
+            >
               <Ionicons name="close" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
 
+          {/* Household list */}
           <FlatList
             data={workspaces}
             keyExtractor={w => w.workspace_id}
-            renderItem={({ item: ws }) => (
-              <View
-                style={[
-                  styles.wsItem,
-                  {
-                    backgroundColor: isCurrent(ws) ? PALETTE.sage + '12' : 'transparent',
-                    borderColor: isCurrent(ws) ? PALETTE.sage + '30' : theme.border,
-                  },
-                ]}
-              >
-                <TouchableOpacity style={styles.wsMain} onPress={() => onSelect(ws)}>
-                  <View
-                    style={[
-                      styles.iconCircle,
-                      {
-                        backgroundColor:
-                          ws.type === 'personal' ? PALETTE.sage + '20' : PALETTE.terracotta + '20',
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name={ws.type === 'personal' ? 'person' : 'people'}
-                      size={18}
-                      color={ws.type === 'personal' ? PALETTE.sage : PALETTE.terracotta}
-                    />
-                  </View>
-                  <View style={styles.wsInfo}>
-                    <Text style={[styles.wsName, { color: theme.text, fontFamily: font.bodyMedium }]}>
-                      {ws.name}
-                    </Text>
-                    <Text style={[styles.wsMeta, { color: theme.textSecondary, fontFamily: font.body }]}>
-                      {ws.type === 'personal' ? 'Personal' : `${ws.members?.length || 1} members`}
-                    </Text>
-                  </View>
-                  {isCurrent(ws) && <Ionicons name="checkmark-circle" size={22} color={PALETTE.sage} />}
-                </TouchableOpacity>
-
-                {ws.type === 'shared' && (
-                  <View style={styles.actions}>
-                    <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: PALETTE.sage + '12' }]}
-                      onPress={() => onInvite(ws)}
-                    >
-                      <Ionicons name="share-outline" size={16} color={PALETTE.sage} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: theme.inputBg }]}
-                      onPress={() => onSettings(ws)}
-                    >
-                      <Ionicons name="settings-outline" size={16} color={theme.textSecondary} />
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            )}
-            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+            style={styles.list}
+            renderItem={renderItem}
+            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           />
 
-          <View style={styles.bottomRow}>
-            <TouchableOpacity style={[styles.bottomBtn, { borderColor: PALETTE.sage }]} onPress={onCreateNew}>
-              <Ionicons name="add-circle-outline" size={20} color={PALETTE.sage} />
-              <Text style={[styles.bottomBtnText, { color: PALETTE.sage, fontFamily: font.bodySemiBold }]}>
-                Create
+          {/* Bottom action buttons */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
+              onPress={onCreateNew}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#fff" />
+              <Text style={[styles.primaryBtnText, { fontFamily: font.bodySemiBold }]}>
+                Create New Household
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.bottomBtn, { borderColor: PALETTE.terracotta }]} onPress={onJoin}>
-              <Ionicons name="enter-outline" size={20} color={PALETTE.terracotta} />
-              <Text style={[styles.bottomBtnText, { color: PALETTE.terracotta, fontFamily: font.bodySemiBold }]}>
-                Join
+
+            <TouchableOpacity
+              style={[styles.outlineBtn, { borderColor: theme.primary }]}
+              onPress={onJoin}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="enter-outline" size={20} color={theme.primary} />
+              <Text style={[styles.outlineBtnText, { color: theme.primary, fontFamily: font.bodySemiBold }]}>
+                Join with Code
               </Text>
             </TouchableOpacity>
           </View>
@@ -119,31 +127,100 @@ export default function HouseholdSwitcherModal({
 }
 
 const styles = StyleSheet.create({
-  wsItem: {
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+    maxHeight: '85%',
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    gap: 10,
-    borderWidth: 1,
+    marginBottom: 20,
   },
-  wsMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconCircle: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  wsInfo: { flex: 1 },
-  wsName: { fontSize: 15 },
-  wsMeta: { fontSize: 12 },
-  actions: { flexDirection: 'row', gap: 4 },
-  actionBtn: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  bottomRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  bottomBtn: {
+  title: {
     flex: 1,
+    fontSize: 22,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  list: {
+    flexGrow: 0,
+  },
+  wsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    padding: 14,
+    gap: 14,
+  },
+  iconSquare: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconInitial: {
+    fontSize: 20,
+    color: '#fff',
+  },
+  wsInfo: {
+    flex: 1,
+  },
+  wsName: {
+    fontSize: 16,
+  },
+  wsType: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  footer: {
+    marginTop: 20,
+    gap: 10,
+  },
+  primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 8,
   },
-  bottomBtnText: { fontSize: 14 },
+  primaryBtnText: {
+    fontSize: 15,
+    color: '#fff',
+  },
+  outlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    backgroundColor: 'transparent',
+    gap: 8,
+  },
+  outlineBtnText: {
+    fontSize: 15,
+  },
 });

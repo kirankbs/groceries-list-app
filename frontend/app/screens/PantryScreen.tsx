@@ -505,7 +505,6 @@ export default function PantryScreen({
 
       <DeleteItemModal
         visible={showDeleteItem}
-        theme={theme}
         font={font as any}
         sessionToken={sessionToken}
         item={itemToDelete}
@@ -519,7 +518,6 @@ export default function PantryScreen({
 
       <HouseholdSwitcherModal
         visible={showHouseholdSwitcher}
-        theme={theme}
         font={font as any}
         workspaces={workspaces}
         currentWorkspace={currentWorkspace}
@@ -527,13 +525,10 @@ export default function PantryScreen({
         onSelect={ws => { setCurrentWorkspace(ws); setShowHouseholdSwitcher(false); }}
         onCreateNew={() => { setShowHouseholdSwitcher(false); setShowCreateHousehold(true); }}
         onJoin={() => { setShowHouseholdSwitcher(false); setShowJoinHousehold(true); }}
-        onInvite={ws => { setDetailsHousehold(ws); handleShowInvite(ws); setShowHouseholdSwitcher(false); }}
-        onSettings={ws => { setDetailsHousehold(ws); setShowHouseholdSwitcher(false); setShowHouseholdDetails(true); }}
       />
 
       <CreateHouseholdModal
         visible={showCreateHousehold}
-        theme={theme}
         font={font as any}
         onClose={() => setShowCreateHousehold(false)}
         onCreated={ws => { setCurrentWorkspace(ws); setShowCreateHousehold(false); }}
@@ -541,7 +536,6 @@ export default function PantryScreen({
 
       <JoinHouseholdModal
         visible={showJoinHousehold}
-        theme={theme}
         font={font as any}
         onClose={() => setShowJoinHousehold(false)}
         onJoined={ws => { setCurrentWorkspace(ws); setShowJoinHousehold(false); }}
@@ -549,7 +543,6 @@ export default function PantryScreen({
 
       <HouseholdDetailsModal
         visible={showHouseholdDetails}
-        theme={theme}
         font={font as any}
         household={detailsHousehold ?? null}
         userId={user?.user_id}
@@ -565,7 +558,6 @@ export default function PantryScreen({
 
       <DeleteHouseholdModal
         visible={showDeleteHousehold}
-        theme={theme}
         font={font as any}
         householdName={detailsHousehold?.name ?? ''}
         loading={deleteHouseholdLoading}
@@ -588,7 +580,6 @@ export default function PantryScreen({
 
       <CreateListModal
         visible={showCreateList}
-        theme={theme}
         font={font as any}
         templates={templates}
         lists={lists}
@@ -598,7 +589,6 @@ export default function PantryScreen({
 
       <InviteCodeModal
         visible={showInviteCode}
-        theme={theme}
         font={font as any}
         inviteCode={inviteCode}
         onClose={() => setShowInviteCode(false)}
@@ -607,7 +597,6 @@ export default function PantryScreen({
       {currentList && (
         <ReceiptScanModal
           visible={showReceiptScan}
-          theme={theme}
           font={font as any}
           listId={currentList.list_id}
           onClose={() => setShowReceiptScan(false)}
@@ -617,7 +606,6 @@ export default function PantryScreen({
 
       <ProfileModal
         visible={showProfile}
-        theme={theme}
         font={font as any}
         user={user}
         currentWorkspace={currentWorkspace}
