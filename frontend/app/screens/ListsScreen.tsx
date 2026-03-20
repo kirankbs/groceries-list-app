@@ -9,9 +9,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../components/ThemeContext';
+import { LIST_COLORS, getStatusBadge } from '../../components/constants';
 import type { FontMap, ShoppingList } from '../../components/types';
-
-const LIST_COLORS = ['#006a28', '#3b82f6', '#f97316', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 type Props = {
   font: FontMap;
@@ -39,16 +38,6 @@ export default function ListsScreen({
   const handleSelectList = (list: ShoppingList) => {
     onSelectList(list);
     onNavigateToPantry();
-  };
-
-  const statusBadge = (status: ShoppingList['status']) => {
-    if (status === 'in_progress') {
-      return { label: 'IN PROGRESS', color: '#ff9727', bg: '#fff3e0' };
-    }
-    if (status === 'completed') {
-      return { label: 'DONE', color: '#006a28', bg: '#e6f4ea' };
-    }
-    return { label: 'ACTIVE', color: '#1b6ef3', bg: '#e8f0fe' };
   };
 
   return (
@@ -81,7 +70,7 @@ export default function ListsScreen({
           activeLists.map((list, index) => {
             const isSelected = currentList?.list_id === list.list_id;
             const iconBg = LIST_COLORS[index % LIST_COLORS.length];
-            const badge = statusBadge(list.status);
+            const badge = getStatusBadge(list.status);
             const initial = list.name.charAt(0).toUpperCase();
 
             return (

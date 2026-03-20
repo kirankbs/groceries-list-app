@@ -4,21 +4,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../ThemeContext';
-import { PALETTE } from '../constants';
+import { PALETTE, LIST_COLORS, getStatusBadge } from '../constants';
 import type { FontMap, ShoppingList, Workspace } from '../types';
 
-const LIST_COLORS = ['#006a28', '#3b82f6', '#f97316', '#9333ea', '#dc2626', '#0891b2'];
 function listColor(list: ShoppingList, index: number): string {
   return LIST_COLORS[index % LIST_COLORS.length];
-}
-
-function statusBadge(status: string) {
-  switch (status) {
-    case 'active': return { label: 'ACTIVE', color: '#1b6ef3' };
-    case 'in_progress': return { label: 'IN PROGRESS', color: '#ff9727' };
-    case 'completed': return { label: 'COMPLETED', color: '#006a28' };
-    default: return { label: status.toUpperCase(), color: '#72796f' };
-  }
 }
 
 type Props = {
@@ -58,7 +48,7 @@ export default function ListsModal({
                 <Text style={[st.sectionLabel, { color: theme.textSecondary, fontFamily: font.bodySemiBold }]}>ACTIVE LISTS</Text>
                 {activeLists.map((list, idx) => {
                   const isCurrent = currentList?.list_id === list.list_id;
-                  const badge = statusBadge(list.status);
+                  const badge = getStatusBadge(list.status);
                   const color = listColor(list, idx);
                   return (
                     <TouchableOpacity

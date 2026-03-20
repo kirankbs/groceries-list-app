@@ -149,8 +149,14 @@ export default function PantryScreen({
     setDeleteHouseholdLoading(false);
   };
 
-  const activeLists = lists.filter(l => l.status !== 'completed' && !l.is_template);
-  const completedLists = lists.filter(l => l.status === 'completed' && !l.is_template);
+  const activeLists = useMemo(
+    () => lists.filter(l => l.status !== 'completed' && !l.is_template),
+    [lists]
+  );
+  const completedLists = useMemo(
+    () => lists.filter(l => l.status === 'completed' && !l.is_template),
+    [lists]
+  );
 
   const renderItem = ({ item }: { item: GroceryItem }) => (
     <View style={{
