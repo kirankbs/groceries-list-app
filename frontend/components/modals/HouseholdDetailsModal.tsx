@@ -112,7 +112,7 @@ export default function HouseholdDetailsModal({
               >
                 <Ionicons name="share-social-outline" size={16} color="#fff" />
                 <Text style={[styles.copyBtnText, { fontFamily: font.bodySemiBold }]}>
-                  Copy Code
+                  Share Code
                 </Text>
               </TouchableOpacity>
             </View>
