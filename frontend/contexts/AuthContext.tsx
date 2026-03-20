@@ -30,6 +30,7 @@ interface Workspace {
   members?: WorkspaceMember[];
   active_lists_count?: number;
   completed_lists_count?: number;
+  currency?: string;
   created_at: string;
 }
 
@@ -64,14 +65,14 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
   clearAuthError: () => void;
   // Workspaces
-  setCurrentWorkspace: (workspace: Workspace) => void;
+  setCurrentWorkspace: (workspace: Workspace) => Promise<void>;
   createWorkspace: (name: string) => Promise<Workspace>;
   joinWorkspace: (inviteCode: string) => Promise<Workspace>;
   leaveWorkspace: (workspaceId: string) => Promise<void>;
   deleteWorkspace: (workspaceId: string) => Promise<void>;
   getInviteCode: (workspaceId: string) => Promise<string>;
   regenerateInviteCode: (workspaceId: string) => Promise<string>;
-  fetchWorkspaces: () => Promise<void>;
+  fetchWorkspaces: () => Promise<Workspace[] | undefined>;
   // Lists
   setCurrentList: (list: ShoppingList | null) => void;
   fetchLists: () => Promise<void>;
@@ -99,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const getStoredToken = useCallback(async (): Promise<string | null> => {
     try {
       if (Platform.OS === 'web') {
-        return localStorage.getItem('session_token');
+        return sessionStorage.getItem('session_token');
       }
       return await SecureStore.getItemAsync('session_token');
     } catch {
@@ -110,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const storeToken = useCallback(async (token: string) => {
     try {
       if (Platform.OS === 'web') {
-        localStorage.setItem('session_token', token);
+        sessionStorage.setItem('session_token', token);
       } else {
         await SecureStore.setItemAsync('session_token', token);
       }
@@ -123,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearToken = useCallback(async () => {
     try {
       if (Platform.OS === 'web') {
-        localStorage.removeItem('session_token');
+        sessionStorage.removeItem('session_token');
       } else {
         await SecureStore.deleteItemAsync('session_token');
       }
@@ -196,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     };
     initAuth();
+  // intentionally run once on mount; initAuth captures stable refs only
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -307,14 +309,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [sessionToken]);
 
-  const fetchWorkspaces = useCallback(async () => {
+  const fetchWorkspaces = useCallback(async (): Promise<Workspace[] | undefined> => {
     if (!sessionToken) return;
     try {
       const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/workspaces`, {
         headers: { 'Authorization': `Bearer ${sessionToken}` },
       });
       if (response.ok) {
-        const data = await response.json();
+        const data: Workspace[] = await response.json();
         setWorkspaces(data);
         if (currentWorkspace) {
           const updated = data.find((w: Workspace) => w.workspace_id === currentWorkspace.workspace_id);
@@ -322,6 +324,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setCurrentWorkspaceState(updated);
           }
         }
+        return data;
       }
     } catch (error) {
       console.error('Error fetching workspaces:', error);
@@ -370,12 +373,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const error = await response.json();
       throw new Error(error.detail || 'Failed to leave workspace');
     }
-    await fetchWorkspaces();
+    const updated = await fetchWorkspaces();
     if (currentWorkspace?.workspace_id === workspaceId) {
-      const personalWs = workspaces.find(w => w.type === 'personal');
+      const personalWs = updated?.find((w: Workspace) => w.type === 'personal');
       if (personalWs) setCurrentWorkspaceState(personalWs);
     }
-  }, [sessionToken, fetchWorkspaces, currentWorkspace, workspaces]);
+  }, [sessionToken, fetchWorkspaces, currentWorkspace]);
 
   const getInviteCode = useCallback(async (workspaceId: string): Promise<string> => {
     if (!sessionToken) throw new Error('Not authenticated');
@@ -415,12 +418,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const error = await response.json();
       throw new Error(error.detail || 'Failed to delete household');
     }
-    await fetchWorkspaces();
+    const updated = await fetchWorkspaces();
     if (currentWorkspace?.workspace_id === workspaceId) {
-      const personalWs = workspaces.find(w => w.type === 'personal');
+      const personalWs = updated?.find((w: Workspace) => w.type === 'personal');
       if (personalWs) setCurrentWorkspaceState(personalWs);
     }
-  }, [sessionToken, fetchWorkspaces, currentWorkspace, workspaces]);
+  }, [sessionToken, fetchWorkspaces, currentWorkspace]);
 
   // List functions
   const setCurrentList = useCallback((list: ShoppingList | null) => {
@@ -437,6 +440,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         setLists(data);
+        // Don't override the user's selection on a re-fetch; only auto-select on workspace switch
         const shouldAutoSelect = !currentList || currentList.workspace_id !== currentWorkspace.workspace_id;
         if (shouldAutoSelect && data.length > 0) {
           const activeList = data.find((l: ShoppingList) => l.status !== 'completed');
