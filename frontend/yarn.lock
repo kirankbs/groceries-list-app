@@ -875,6 +875,11 @@
     "@eslint/core" "^0.17.0"
     levn "^0.4.1"
 
+"@expo-google-fonts/inter@^0.4.2":
+  version "0.4.2"
+  resolved "https://registry.yarnpkg.com/@expo-google-fonts/inter/-/inter-0.4.2.tgz#2d37ffb1cb16600cff616b6c4c0efee9b6c47c28"
+  integrity sha512-syfiImMaDmq7cFi0of+waE2M4uSCyd16zgyWxdPOY7fN2VBmSLKEzkfbZgeOjJq61kSqPBNNtXjggiQiSD6gMQ==
+
 "@expo-google-fonts/lora@^0.4.2":
   version "0.4.2"
   resolved "https://registry.yarnpkg.com/@expo-google-fonts/lora/-/lora-0.4.2.tgz#cf4464ab37fcbcd3131cba173874690fa3077dc8"
@@ -884,6 +889,11 @@
   version "0.4.2"
   resolved "https://registry.yarnpkg.com/@expo-google-fonts/nunito/-/nunito-0.4.2.tgz#9ce15e924dc7fc29a2257afb7f78a3f0e7d0d39f"
   integrity sha512-1KCWphw/I2ugqfs9iRHUCkPTnomNgGPtF4AvqVquoEKxr0EL+mcLNLgeixsslbaSFevRR6/KJAE3sc8g0VaY0Q==
+
+"@expo-google-fonts/plus-jakarta-sans@^0.4.2":
+  version "0.4.2"
+  resolved "https://registry.yarnpkg.com/@expo-google-fonts/plus-jakarta-sans/-/plus-jakarta-sans-0.4.2.tgz#95d6640ecb3aa76c534fb4ef3490ec7b230c3b60"
+  integrity sha512-6LYVmVGwjQvH+uzzWlVc9+oMj4lkNQ41aymVDjO+x8aFk8kCye20wOyLomYMZaMezA++Uf1mZRCw3W3Fy/hxEA==
 
 "@expo/cli@54.0.23":
   version "54.0.23"
