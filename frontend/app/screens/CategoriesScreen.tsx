@@ -41,7 +41,7 @@ export default function CategoriesScreen({ font, categories, fetchCategories }: 
             if (!currentWorkspace) return;
             try {
               await fetch(
-                `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/categories/${cat.id}`,
+                `${EXPO_PUBLIC_BACKEND_URL}/api/categories/${cat.id}`,
                 { method: 'DELETE', headers: { Authorization: `Bearer ${sessionToken}` } }
               );
               fetchCategories();

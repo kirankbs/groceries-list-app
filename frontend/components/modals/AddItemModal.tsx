@@ -27,11 +27,13 @@ export default function AddItemModal({
   const [unit, setUnit] = useState('items');
   const [category, setCategory] = useState('Other');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const reset = () => { setName(''); setQuantity(1); setUnit('items'); setCategory('Other'); };
+  const reset = () => { setName(''); setQuantity(1); setUnit('items'); setCategory('Other'); setError(''); };
 
   const handleAdd = async () => {
     if (!name.trim() || !currentList) return;
+    setError('');
     setLoading(true);
     try {
       const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/items`, {
@@ -43,8 +45,14 @@ export default function AddItemModal({
         onItemAdded(await res.json());
         reset();
         onClose();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setError(err.detail || 'Failed to add item');
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      setError('Network error. Please try again.');
+    }
     setLoading(false);
   };
 
@@ -134,6 +142,7 @@ export default function AddItemModal({
           </ScrollView>
 
           {/* Buttons */}
+          {!!error && <Text style={{ color: theme.error, fontSize: 13, fontFamily: font.body, marginBottom: 8 }}>{error}</Text>}
           <View style={st.buttonRow}>
             <TouchableOpacity
               style={[st.cancelBtn, { backgroundColor: theme.surfaceContainer }]}

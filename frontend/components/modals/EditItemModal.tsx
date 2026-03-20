@@ -28,6 +28,7 @@ export default function EditItemModal({
   const [unit, setUnit] = useState('items');
   const [category, setCategory] = useState('Other');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (item) {
@@ -35,11 +36,18 @@ export default function EditItemModal({
       setQuantity(item.quantity);
       setUnit(item.unit || 'items');
       setCategory(item.category);
+    } else {
+      setName('');
+      setQuantity(1);
+      setUnit('items');
+      setCategory('Other');
+      setError('');
     }
   }, [item]);
 
   const handleSave = async () => {
     if (!item || !name.trim()) return;
+    setError('');
     setLoading(true);
     try {
       const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/items/${item.id}`, {
@@ -50,8 +58,14 @@ export default function EditItemModal({
       if (res.ok) {
         onItemUpdated(await res.json());
         onClose();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setError(err.detail || 'Failed to save changes');
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      setError('Network error. Please try again.');
+    }
     setLoading(false);
   };
 
@@ -137,6 +151,7 @@ export default function EditItemModal({
           </ScrollView>
 
           {/* Save / Cancel buttons */}
+          {!!error && <Text style={{ color: theme.error, fontSize: 13, fontFamily: font.body, marginBottom: 8 }}>{error}</Text>}
           <View style={st.buttonRow}>
             <TouchableOpacity
               style={[st.cancelBtn, { backgroundColor: theme.surfaceContainer }]}
