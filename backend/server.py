@@ -473,7 +473,7 @@ async def login(input: LoginRequest, response: Response):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     session_token = await create_user_session(user_doc["user_id"], response, replace=True)
-    user_response = await db.users.find_one({"user_id": user_doc["user_id"]}, {"_id": 0, "password_hash": 0})
+    user_response = {k: v for k, v in user_doc.items() if k not in ("_id", "password_hash")}
     return {"user": user_response, "session_token": session_token}
 
 @api_router.get("/auth/me")
@@ -715,13 +715,22 @@ async def get_shopping_lists(workspace_id: str, request: Request):
         {"_id": 0}
     ).sort("created_at", -1).to_list(1000)
     
-    # Add item counts to each list
+    # Add item counts to each list via a single aggregation instead of N+1 queries
+    list_ids = [l["list_id"] for l in lists]
+    pipeline = [
+        {"$match": {"list_id": {"$in": list_ids}}},
+        {"$group": {
+            "_id": "$list_id",
+            "total": {"$sum": 1},
+            "checked": {"$sum": {"$cond": ["$checked", 1, 0]}}
+        }}
+    ]
+    counts = {r["_id"]: r async for r in db.grocery_items.aggregate(pipeline)}
     for lst in lists:
-        total_items = await db.grocery_items.count_documents({"list_id": lst["list_id"]})
-        checked_items = await db.grocery_items.count_documents({"list_id": lst["list_id"], "checked": True})
-        lst["total_items"] = total_items
-        lst["checked_items"] = checked_items
-    
+        c = counts.get(lst["list_id"], {"total": 0, "checked": 0})
+        lst["total_items"] = c["total"]
+        lst["checked_items"] = c["checked"]
+
     return lists
 
 @api_router.get("/workspaces/{workspace_id}/templates")
@@ -735,10 +744,15 @@ async def get_templates(workspace_id: str, request: Request):
         {"_id": 0}
     ).sort("created_at", -1).to_list(100)
     
+    template_ids = [t["list_id"] for t in templates]
+    tpl_pipeline = [
+        {"$match": {"list_id": {"$in": template_ids}}},
+        {"$group": {"_id": "$list_id", "total": {"$sum": 1}}}
+    ]
+    tpl_counts = {r["_id"]: r["total"] async for r in db.grocery_items.aggregate(tpl_pipeline)}
     for tpl in templates:
-        item_count = await db.grocery_items.count_documents({"list_id": tpl["list_id"]})
-        tpl["item_count"] = item_count
-    
+        tpl["item_count"] = tpl_counts.get(tpl["list_id"], 0)
+
     return templates
 
 @api_router.post("/lists")
