@@ -473,7 +473,6 @@ export default function PantryScreen({
       {/* Modals */}
       <AddItemModal
         visible={showAddItem}
-        theme={theme}
         font={font as any}
         categories={categories}
         sessionToken={sessionToken}
@@ -487,7 +486,6 @@ export default function PantryScreen({
 
       <EditItemModal
         visible={showEditItem}
-        theme={theme}
         font={font as any}
         categories={categories}
         sessionToken={sessionToken}
