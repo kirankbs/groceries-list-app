@@ -3,11 +3,11 @@ import { Modal, View, Text, TouchableOpacity, ActivityIndicator } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
-import type { Theme, FontMap } from '../types';
+import { useTheme } from '../ThemeContext';
+import type { FontMap } from '../types';
 
 interface Props {
   visible: boolean;
-  theme: Theme;
   font: FontMap;
   householdName: string;
   loading: boolean;
@@ -16,8 +16,9 @@ interface Props {
 }
 
 export default function DeleteHouseholdModal({
-  visible, theme, font, householdName, loading, onClose, onConfirm,
+  visible, font, householdName, loading, onClose, onConfirm,
 }: Props) {
+  const { theme } = useTheme();
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={modalStyles.centeredOverlay}>
@@ -29,7 +30,7 @@ export default function DeleteHouseholdModal({
             Delete Household?
           </Text>
           <Text style={[modalStyles.centeredMsg, { color: theme.textSecondary, fontFamily: font.body }]}>
-            This will permanently delete "{householdName}" and all its lists.
+            This will permanently delete {'"'}{householdName}{'"'} and all its lists.
           </Text>
           <View style={modalStyles.centeredButtons}>
             <TouchableOpacity

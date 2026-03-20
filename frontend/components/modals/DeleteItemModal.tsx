@@ -3,11 +3,11 @@ import { Modal, View, Text, TouchableOpacity, ActivityIndicator } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { EXPO_PUBLIC_BACKEND_URL, PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
-import { Theme, FontMap, GroceryItem } from '../types';
+import { useTheme } from '../ThemeContext';
+import { FontMap, GroceryItem } from '../types';
 
 type Props = {
   visible: boolean;
-  theme: Theme;
   font: FontMap;
   sessionToken: string | null;
   item: GroceryItem | null;
@@ -16,8 +16,9 @@ type Props = {
 };
 
 export default function DeleteItemModal({
-  visible, theme, font, sessionToken, item, onClose, onDeleted,
+  visible, font, sessionToken, item, onClose, onDeleted,
 }: Props) {
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
 
   const handleDelete = async () => {
@@ -47,7 +48,7 @@ export default function DeleteItemModal({
           </View>
           <Text style={[modalStyles.centeredTitle, { color: theme.text, fontFamily: font.serif }]}>Delete Item?</Text>
           <Text style={[modalStyles.centeredMsg, { color: theme.textSecondary, fontFamily: font.body }]}>
-            "{item?.name}"
+            {'"'}{item?.name}{'"'}
           </Text>
           <View style={modalStyles.centeredButtons}>
             <TouchableOpacity style={[modalStyles.centeredBtn, { backgroundColor: theme.inputBg }]} onPress={onClose}>

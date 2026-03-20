@@ -7,11 +7,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
 import { useAuth } from '../../contexts/AuthContext';
-import type { Theme, FontMap, ShoppingList } from '../types';
+import { useTheme } from '../ThemeContext';
+import type { FontMap, ShoppingList } from '../types';
 
 interface Props {
   visible: boolean;
-  theme: Theme;
   font: FontMap;
   templates: ShoppingList[];
   lists: ShoppingList[];
@@ -28,8 +28,9 @@ const MODE_OPTIONS: { mode: CreateMode; label: string; icon: string }[] = [
 ];
 
 export default function CreateListModal({
-  visible, theme, font, templates, lists, onClose, onCreated,
+  visible, font, templates, lists, onClose, onCreated,
 }: Props) {
+  const { theme } = useTheme();
   const { createList } = useAuth();
 
   const [name, setName] = useState('');

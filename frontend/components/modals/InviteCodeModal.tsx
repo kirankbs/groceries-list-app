@@ -3,17 +3,18 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
-import { Theme, FontMap } from '../types';
+import { useTheme } from '../ThemeContext';
+import { FontMap } from '../types';
 
 type Props = {
   visible: boolean;
-  theme: Theme;
   font: FontMap;
   inviteCode: string;
   onClose: () => void;
 };
 
-export default function InviteCodeModal({ visible, theme, font, inviteCode, onClose }: Props) {
+export default function InviteCodeModal({ visible, font, inviteCode, onClose }: Props) {
+  const { theme } = useTheme();
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={modalStyles.centeredOverlay}>

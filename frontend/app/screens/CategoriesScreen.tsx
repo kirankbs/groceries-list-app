@@ -107,7 +107,7 @@ export default function CategoriesScreen({ font, categories, fetchCategories }: 
             <View style={[st.proTip, { backgroundColor: theme.primary + '12' }]}>
               <Text style={{ fontFamily: font.bodyBold, color: theme.primary, fontSize: 14, marginBottom: 4 }}>Pro Tip</Text>
               <Text style={{ fontFamily: font.body, color: theme.textSecondary, fontSize: 13, lineHeight: 18 }}>
-                Group categories by your grocery store's layout to cut your shopping time in half.
+                Group categories by your grocery store&apos;s layout to cut your shopping time in half.
               </Text>
             </View>
           </View>

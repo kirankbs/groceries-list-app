@@ -3,7 +3,8 @@ import { Modal, View, Text, TouchableOpacity, Image, StyleSheet } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
-import type { Theme, FontMap, Workspace } from '../types';
+import { useTheme } from '../ThemeContext';
+import type { FontMap, Workspace } from '../types';
 
 interface User {
   user_id: string;
@@ -14,7 +15,6 @@ interface User {
 
 interface Props {
   visible: boolean;
-  theme: Theme;
   font: FontMap;
   user: User | null;
   currentWorkspace: Workspace | null;
@@ -25,9 +25,10 @@ interface Props {
 }
 
 export default function ProfileModal({
-  visible, theme, font, user, currentWorkspace,
+  visible, font, user, currentWorkspace,
   onClose, onInvite, onLeave, onLogout,
 }: Props) {
+  const { theme } = useTheme();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={modalStyles.overlay}>

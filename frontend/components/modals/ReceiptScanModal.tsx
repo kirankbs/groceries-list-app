@@ -15,7 +15,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
 import { EXPO_PUBLIC_BACKEND_URL, PALETTE, CURRENCY_SYMBOLS } from '../constants';
 import { modalStyles } from '../sharedStyles';
-import { Theme, FontMap } from '../types';
+import { useTheme } from '../ThemeContext';
+import { FontMap } from '../types';
 
 type Step = 'picker' | 'uploading' | 'review' | 'confirming';
 
@@ -37,7 +38,6 @@ interface ReceiptData {
 
 interface Props {
   visible: boolean;
-  theme: Theme;
   font: FontMap;
   listId: string;
   onClose: () => void;
@@ -49,12 +49,12 @@ const POLL_INTERVAL = 3000;
 
 export default function ReceiptScanModal({
   visible,
-  theme,
   font,
   listId,
   onClose,
   onPricesSaved,
 }: Props) {
+  const { theme } = useTheme();
   const { sessionToken, currentWorkspace } = useAuth();
   const [step, setStep] = useState<Step>('picker');
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
@@ -260,7 +260,7 @@ export default function ReceiptScanModal({
             { color: theme.textSecondary, fontFamily: font.body },
           ]}
         >
-          Take a photo of your receipt and we'll match items to your list with
+          Take a photo of your receipt and we&apos;ll match items to your list with
           prices filled in automatically.
         </Text>
 
