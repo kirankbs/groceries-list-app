@@ -1,13 +1,15 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import {
+  Modal, View, Text, TouchableOpacity, ScrollView, Share, StyleSheet,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
-import type { Theme, FontMap, Workspace } from '../types';
+import type { FontMap, Workspace } from '../types';
+import { useTheme } from '../ThemeContext';
 
 interface Props {
   visible: boolean;
-  theme: Theme;
   font: FontMap;
   household: Workspace | null;
   userId: string | undefined;
@@ -17,107 +19,335 @@ interface Props {
   onLeave: () => void;
 }
 
+function formatInviteCode(raw: string): string {
+  // Normalise to XXXX-XXXX if not already formatted
+  const clean = raw.replace(/-/g, '');
+  if (clean.length === 8) return `${clean.slice(0, 4)}-${clean.slice(4)}`;
+  return raw;
+}
+
+function formatEstDate(isoString: string | undefined): string | null {
+  if (!isoString) return null;
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  } catch {
+    return null;
+  }
+}
+
 export default function HouseholdDetailsModal({
-  visible, theme, font, household, userId, onClose, onInvite, onDelete, onLeave,
+  visible, font, household, userId, onClose, onInvite, onDelete, onLeave,
 }: Props) {
+  const { theme } = useTheme();
+
   if (!household) return null;
 
   const isOwner = household.owner_id === userId;
+  const estDate = formatEstDate(household.created_at);
+  const memberCount = household.members?.length ?? household.member_ids?.length ?? 1;
+  const displayCode = household.invite_code ? formatInviteCode(household.invite_code) : null;
+
+  const handleCopyCode = async () => {
+    if (!displayCode) return;
+    try {
+      await Share.share({ message: displayCode });
+    } catch {
+      // ignore user cancel
+    }
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={modalStyles.overlay}>
-        <View style={[modalStyles.content, { backgroundColor: theme.surface }]}>
-          <View style={modalStyles.header}>
-            <Text style={[modalStyles.title, { color: theme.text, fontFamily: font.serif }]}>Settings</Text>
-            <TouchableOpacity onPress={onClose} style={[modalStyles.closeBtn, { backgroundColor: theme.inputBg }]}>
+        <ScrollView
+          style={{ maxHeight: '90%' }}
+          contentContainerStyle={[styles.content, { backgroundColor: theme.surface }]}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Close button */}
+          <View style={styles.closeBtnRow}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={[styles.closeBtn, { backgroundColor: theme.surfaceContainer }]}
+            >
               <Ionicons name="close" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.infoCard, { backgroundColor: theme.inputBg }]}>
-            <View style={[styles.iconCircle, { backgroundColor: PALETTE.terracotta + '18' }]}>
-              <Ionicons name="people" size={24} color={PALETTE.terracotta} />
+          {/* Household header */}
+          <View style={styles.householdHeader}>
+            <View style={styles.householdIconCircle}>
+              <Ionicons name="home" size={32} color="#fff" />
             </View>
-            <Text style={[styles.infoName, { color: theme.text, fontFamily: font.serifMedium }]}>
+            <Text style={[styles.householdName, { color: theme.text, fontFamily: font.display }]} numberOfLines={2}>
               {household.name}
             </Text>
-            <Text style={{ color: theme.textSecondary, fontFamily: font.body, fontSize: 14, marginTop: 2 }}>
-              {household.members?.length || 1} members
-            </Text>
+            {estDate && (
+              <Text style={[styles.estDate, { color: theme.textSecondary, fontFamily: font.body }]}>
+                Est. {estDate}
+              </Text>
+            )}
+            <View style={[styles.memberBadge, { backgroundColor: PALETTE.primary + '18' }]}>
+              <Ionicons name="people" size={13} color={PALETTE.primary} />
+              <Text style={[styles.memberBadgeText, { color: PALETTE.primary, fontFamily: font.bodySemiBold }]}>
+                {memberCount} {memberCount === 1 ? 'member' : 'members'}
+              </Text>
+            </View>
           </View>
 
-          <Text style={[modalStyles.formLabel, { color: theme.textSecondary, fontFamily: font.bodySemiBold, marginTop: 16 }]}>
-            Members
-          </Text>
-          {household.members?.map(m => (
-            <View key={m.user_id} style={styles.memberRow}>
-              {m.picture ? (
-                <Image source={{ uri: m.picture }} style={styles.memberAvatar} />
-              ) : (
-                <View style={[styles.memberAvatarPlaceholder, { backgroundColor: PALETTE.terracotta + '15' }]}>
-                  <Ionicons name="person" size={16} color={PALETTE.terracotta} />
-                </View>
-              )}
-              <Text style={[styles.memberName, { color: theme.text, fontFamily: font.bodyMedium }]}>
-                {m.name}
+          {/* Invite code card */}
+          {displayCode && (
+            <View style={[styles.inviteCard, { backgroundColor: theme.surfaceContainer }]}>
+              <Text style={[styles.inviteCardTitle, { color: theme.textSecondary, fontFamily: font.bodySemiBold }]}>
+                INVITE NEW PANTRY KEEPERS
               </Text>
-              {m.user_id === household.owner_id && (
-                <View style={styles.ownerBadge}>
-                  <Text style={[styles.ownerBadgeText, { fontFamily: font.bodySemiBold }]}>Owner</Text>
-                </View>
-              )}
-            </View>
-          ))}
-
-          <View style={{ marginTop: 20, gap: 10 }}>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: PALETTE.sage + '12' }]}
-              onPress={onInvite}
-            >
-              <Ionicons name="share-outline" size={18} color={PALETTE.sage} />
-              <Text style={{ color: PALETTE.sage, fontFamily: font.bodySemiBold, fontSize: 15 }}>
-                Invite People
+              <Text style={[styles.inviteCode, { color: theme.text, fontFamily: font.bodyBold }]}>
+                {displayCode}
               </Text>
-            </TouchableOpacity>
-
-            {isOwner ? (
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: PALETTE.rust + '10' }]}
-                onPress={onDelete}
+                style={[styles.copyBtn, { backgroundColor: PALETTE.primary }]}
+                onPress={handleCopyCode}
               >
-                <Ionicons name="trash-outline" size={18} color={PALETTE.rust} />
-                <Text style={{ color: PALETTE.rust, fontFamily: font.bodySemiBold, fontSize: 15 }}>
-                  Delete Household
+                <Ionicons name="share-social-outline" size={16} color="#fff" />
+                <Text style={[styles.copyBtnText, { fontFamily: font.bodySemiBold }]}>
+                  Copy Code
                 </Text>
               </TouchableOpacity>
-            ) : (
+            </View>
+          )}
+
+          {/* Members list */}
+          {household.members && household.members.length > 0 && (
+            <View style={styles.membersSection}>
+              <Text style={[modalStyles.formLabel, { color: theme.textSecondary, fontFamily: font.bodySemiBold }]}>
+                HOUSEHOLD MEMBERS
+              </Text>
+              {household.members.map(m => {
+                const initial = (m.name || m.email || '?')[0].toUpperCase();
+                const memberIsOwner = m.user_id === household.owner_id;
+                return (
+                  <View key={m.user_id} style={[styles.memberRow, { borderBottomColor: theme.outlineVariant }]}>
+                    <View style={[styles.memberAvatar, { backgroundColor: PALETTE.primary + '20' }]}>
+                      <Text style={[styles.memberAvatarText, { color: PALETTE.primary, fontFamily: font.bodyBold }]}>
+                        {initial}
+                      </Text>
+                    </View>
+                    <View style={styles.memberInfo}>
+                      <Text style={[styles.memberName, { color: theme.text, fontFamily: font.bodyMedium }]}>
+                        {m.name || m.email}
+                      </Text>
+                      {m.email && m.name && (
+                        <Text style={[styles.memberEmail, { color: theme.textSecondary, fontFamily: font.body }]} numberOfLines={1}>
+                          {m.email}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={[
+                      styles.roleBadge,
+                      { backgroundColor: memberIsOwner ? PALETTE.primary + '15' : theme.surfaceContainer },
+                    ]}>
+                      <Text style={[
+                        styles.roleBadgeText,
+                        { color: memberIsOwner ? PALETTE.primary : theme.textSecondary, fontFamily: font.bodySemiBold },
+                      ]}>
+                        {memberIsOwner ? 'Owner' : 'Member'}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Actions */}
+          <View style={styles.actionsSection}>
+            {/* Leave household (non-owners only) */}
+            {!isOwner && (
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: PALETTE.rust + '10' }]}
+                style={[styles.leaveBtn, { borderColor: PALETTE.error }]}
                 onPress={onLeave}
               >
-                <Ionicons name="exit-outline" size={18} color={PALETTE.rust} />
-                <Text style={{ color: PALETTE.rust, fontFamily: font.bodySemiBold, fontSize: 15 }}>
+                <Ionicons name="exit-outline" size={18} color={PALETTE.error} />
+                <Text style={[styles.leaveBtnText, { color: PALETTE.error, fontFamily: font.bodySemiBold }]}>
                   Leave Household
                 </Text>
               </TouchableOpacity>
             )}
+
+            {/* Delete household (owner only) */}
+            {isOwner && (
+              <TouchableOpacity
+                style={[styles.deleteBtn, { backgroundColor: PALETTE.error }]}
+                onPress={onDelete}
+              >
+                <Ionicons name="trash-outline" size={18} color="#fff" />
+                <Text style={[styles.deleteBtnText, { fontFamily: font.bodyBold }]}>
+                  Delete Household
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  infoCard: { alignItems: 'center', padding: 20, borderRadius: 16, marginBottom: 8 },
-  iconCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
-  infoName: { fontSize: 18, marginTop: 10 },
-  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  memberAvatar: { width: 32, height: 32, borderRadius: 16 },
-  memberAvatarPlaceholder: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  memberName: { flex: 1, fontSize: 14 },
-  ownerBadge: { backgroundColor: PALETTE.sage + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  ownerBadgeText: { fontSize: 11, color: PALETTE.sage },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 14, gap: 8 },
+  content: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  closeBtnRow: {
+    alignItems: 'flex-end',
+    marginBottom: 8,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Household header
+  householdHeader: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginBottom: 20,
+  },
+  householdIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: PALETTE.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  householdName: {
+    fontSize: 26,
+    textAlign: 'center',
+    lineHeight: 32,
+    marginBottom: 4,
+  },
+  estDate: {
+    fontSize: 13,
+    marginBottom: 10,
+  },
+  memberBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  memberBadgeText: {
+    fontSize: 13,
+  },
+
+  // Invite card
+  inviteCard: {
+    borderRadius: 18,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  inviteCardTitle: {
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  inviteCode: {
+    fontSize: 28,
+    letterSpacing: 6,
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  copyBtnText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+
+  // Members
+  membersSection: {
+    marginBottom: 20,
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  memberAvatarText: {
+    fontSize: 16,
+  },
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 15,
+  },
+  memberEmail: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  roleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  roleBadgeText: {
+    fontSize: 11,
+  },
+
+  // Actions
+  actionsSection: {
+    gap: 12,
+    marginTop: 8,
+  },
+  leaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  leaveBtnText: {
+    fontSize: 15,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
+    borderRadius: 14,
+  },
+  deleteBtnText: {
+    color: '#fff',
+    fontSize: 15,
+  },
 });
