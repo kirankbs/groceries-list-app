@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { offlineCache } from '../services/offlineCache';
+import { syncQueue } from '../services/syncQueue';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -58,6 +61,11 @@ interface AuthContextType {
   isAuthenticated: boolean;
   sessionToken: string | null;
   authError: string | null;
+  // Offline support
+  isOnline: boolean;
+  wasOffline: boolean;
+  pendingSyncCount: number;
+  refreshPendingCount: () => Promise<void>;
   // Auth
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
@@ -96,6 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const { isOnline, wasOffline } = useNetworkStatus();
 
   const getStoredToken = useCallback(async (): Promise<string | null> => {
     try {
@@ -133,6 +143,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Error clearing token:', error);
     }
   }, []);
+
+  const refreshPendingCount = useCallback(async () => {
+    const count = await syncQueue.count();
+    setPendingSyncCount(count);
+  }, []);
+
+  // On app mount, load initial pending count from the persisted queue
+  useEffect(() => { refreshPendingCount(); }, [refreshPendingCount]);
+
+  // Refresh the displayed pending count when coming back online (flush is handled in index.tsx)
+  useEffect(() => {
+    if (!wasOffline) return;
+    refreshPendingCount();
+  }, [wasOffline, refreshPendingCount]);
 
   const fetchUserData = useCallback(async (token: string, shouldSelectWorkspace: boolean = false) => {
     try {
@@ -261,12 +285,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } finally {
       await clearToken();
+      await syncQueue.clear();
       setUser(null);
       setWorkspaces([]);
       setCurrentWorkspaceState(null);
       setCurrentListState(null);
       setLists([]);
       setTemplates([]);
+      setPendingSyncCount(0);
     }
   }, [sessionToken, clearToken]);
 
@@ -295,6 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (listsResponse.ok) {
           const listsData = await listsResponse.json();
           setLists(listsData);
+          await offlineCache.setLists(workspace.workspace_id, listsData);
           if (listsData.length > 0) {
             const activeList = listsData.find((l: ShoppingList) => l.status !== 'completed');
             setCurrentListState(activeList || listsData[0]);
@@ -304,6 +331,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTemplates(await templatesResponse.json());
         }
       } catch (error) {
+        // Offline: serve cached lists for this workspace
+        const cached = await offlineCache.getLists(workspace.workspace_id);
+        if (cached) {
+          setLists(cached.data);
+          if (cached.data.length > 0) {
+            const activeList = cached.data.find((l: ShoppingList) => l.status !== 'completed');
+            setCurrentListState(activeList || cached.data[0]);
+          }
+        }
         console.error('Error fetching workspace data:', error);
       }
     }
@@ -440,6 +476,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         setLists(data);
+        await offlineCache.setLists(currentWorkspace.workspace_id, data);
         // Don't override the user's selection on a re-fetch; only auto-select on workspace switch
         const shouldAutoSelect = !currentList || currentList.workspace_id !== currentWorkspace.workspace_id;
         if (shouldAutoSelect && data.length > 0) {
@@ -448,6 +485,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error) {
+      // Offline: serve cached lists
+      const cached = await offlineCache.getLists(currentWorkspace.workspace_id);
+      if (cached) {
+        setLists(cached.data);
+        const shouldAutoSelect = !currentList || currentList.workspace_id !== currentWorkspace.workspace_id;
+        if (shouldAutoSelect && cached.data.length > 0) {
+          const activeList = cached.data.find((l: ShoppingList) => l.status !== 'completed');
+          setCurrentListState(activeList || cached.data[0]);
+        }
+      }
       console.error('Error fetching lists:', error);
     }
   }, [sessionToken, currentWorkspace, currentList]);
@@ -554,6 +601,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user, workspaces, currentWorkspace, currentList, lists, templates,
         isLoading, isAuthenticated: !!user, sessionToken, authError,
+        isOnline, wasOffline, pendingSyncCount, refreshPendingCount,
         login, register, logout, refreshUser, clearAuthError,
         setCurrentWorkspace, createWorkspace, joinWorkspace, leaveWorkspace,
         deleteWorkspace, getInviteCode, regenerateInviteCode, fetchWorkspaces,
