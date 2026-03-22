@@ -8,6 +8,7 @@ import { useTheme } from '../../components/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { EXPO_PUBLIC_BACKEND_URL } from '../../components/constants';
 import type { FontMap, Category, GroceryItem } from '../../components/types';
+import { syncQueue } from '../../services/syncQueue';
 
 import AddItemModal from '../../components/modals/AddItemModal';
 import EditItemModal from '../../components/modals/EditItemModal';
@@ -39,9 +40,9 @@ export default function PantryScreen({
   const { theme } = useTheme();
   const {
     user, workspaces, currentWorkspace, currentList, lists, templates,
-    sessionToken, setCurrentWorkspace, setCurrentList,
+    sessionToken, isOnline, setCurrentWorkspace, setCurrentList,
     createWorkspace, getInviteCode, regenerateInviteCode,
-    leaveWorkspace, deleteWorkspace, logout,
+    leaveWorkspace, deleteWorkspace, logout, refreshPendingCount,
   } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,8 +111,17 @@ export default function PantryScreen({
 
   const toggleItem = useCallback(async (item: GroceryItem) => {
     if (!sessionToken) return;
-    // Optimistic update
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: !i.checked } : i));
+    const newChecked = !item.checked;
+    // Optimistic update always applied immediately
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: newChecked } : i));
+
+    if (!isOnline) {
+      // Queue the mutation; it will be flushed when connectivity returns
+      await syncQueue.enqueue(item.id, newChecked);
+      await refreshPendingCount();
+      return;
+    }
+
     try {
       const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/items/${item.id}`, {
         method: 'PUT',
@@ -119,16 +129,18 @@ export default function PantryScreen({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${sessionToken}`,
         },
-        body: JSON.stringify({ checked: !item.checked }),
+        body: JSON.stringify({ checked: newChecked }),
       });
       if (!res.ok) {
-        // Revert on failure
+        // Revert on server rejection
         setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: item.checked } : i));
       }
     } catch {
-      setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: item.checked } : i));
+      // Network error despite isOnline — queue and revert visual only on unexpected failure
+      await syncQueue.enqueue(item.id, newChecked);
+      await refreshPendingCount();
     }
-  }, [sessionToken, setItems]);
+  }, [sessionToken, isOnline, setItems, refreshPendingCount]);
 
   const handleShowInvite = async (ws = currentWorkspace) => {
     if (!ws) return;

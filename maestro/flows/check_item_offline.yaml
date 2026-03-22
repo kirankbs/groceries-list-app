@@ -1,0 +1,28 @@
+# appId for Expo Go (development). Replace with actual bundle ID for standalone builds.
+appId: host.exp.Exponent
+---
+# Assumes login.yaml and add_item.yaml have already run so "Test Apple" exists in the list.
+
+# Enable airplane mode — cuts all network connectivity
+- toggleAirplaneMode
+
+# The offline banner appears when isOnline becomes false.
+# Banner text is built as "Offline" optionally suffixed with "N pending" and a sync timestamp.
+- assertVisible:
+    text: "Offline"
+
+# Tap the checkbox area of the "Test Apple" item to check it.
+# The item row contains the item name — Maestro taps within that element's bounds.
+# If the checkbox is a separate element, add accessibilityLabel="Toggle Test Apple" to it.
+- tapOn:
+    text: "Test Apple"
+
+# After checking, the item renders with strikethrough and reduced opacity (visual state).
+# We assert the item text is still visible — Maestro sees the rendered node regardless of style.
+- assertVisible:
+    text: "Test Apple"
+
+# The sync queue now has a pending operation. The banner should show "1 pending" (or more).
+# This verifies the offline queue is accepting writes.
+- assertVisible:
+    text: "pending"

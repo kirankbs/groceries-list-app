@@ -1,0 +1,33 @@
+# appId for Expo Go (development). For a standalone build, replace with the actual bundle ID
+# (e.g. com.grocerieslistapp — check app.json > expo.ios.bundleIdentifier / expo.android.package)
+appId: host.exp.Exponent
+---
+# Open the app and wait for the auth screen to load
+- launchApp
+
+# The app shows "The Living Pantry" heading on the auth screen — wait for it
+- assertVisible:
+    text: "The Living Pantry"
+
+# Tap the email field and enter test credentials
+- tapOn:
+    text: "hello@livingpantry.com"  # placeholder text on the email input
+- inputText: "testuser@example.com"
+
+# Tap the password field
+- tapOn:
+    text: "Enter your password"  # placeholder text on the password input
+- inputText: "testpassword123"
+
+# Submit — button label is "Sign In" in login mode
+- tapOn:
+    text: "Sign In"
+
+# After login succeeds the app lands on the Pantry tab. The list selector header
+# shows the current list name. Assert something that exists on any authenticated screen.
+- assertVisible:
+    text: "The Living Pantry"
+
+# The bottom tab bar should now be visible (pantry is the default tab)
+- assertVisible:
+    text: "Pantry"

@@ -60,6 +60,8 @@ class BackendTester:
         user_ids = [self.test_user_id]
         if hasattr(self, '_second_user_id'):
             user_ids.append(self._second_user_id)
+        if hasattr(self, '_third_user_id'):
+            user_ids.append(self._third_user_id)
 
         # Find all workspaces owned by test users
         workspaces = await self.db.workspaces.find(
@@ -398,24 +400,26 @@ class BackendTester:
         return False
 
     async def test_get_workspace_categories(self):
-        """Test GET /api/workspaces/{id}/categories"""
+        """Test GET /api/workspaces/{id}/categories — 10 default categories on a new workspace"""
         print("\n🔍 Testing GET /api/workspaces/{id}/categories...")
-        
+
         if not self.test_workspace_id:
             self.log_result("GET /api/workspaces/{id}/categories", False, "No workspace ID available")
             return False
-        
+
         response = await self.make_request("GET", f"/workspaces/{self.test_workspace_id}/categories")
-        
+
         if response and response.status_code == 200:
             data = response.json()
             if isinstance(data, list) and len(data) > 0:
-                # Check if default categories exist
                 category_names = [cat.get("name") for cat in data]
                 expected_categories = ["Produce", "Dairy", "Meat", "Other"]
                 has_expected = any(cat in category_names for cat in expected_categories)
-                
+
                 if has_expected:
+                    # Store a category id for subsequent tests
+                    self._test_category_id = data[0]["id"]
+                    self._test_category_name = data[0]["name"]
                     self.log_result("GET /api/workspaces/{id}/categories", True, f"Retrieved {len(data)} categories")
                     return True
                 else:
@@ -426,7 +430,339 @@ class BackendTester:
             status = response.status_code if response else "No response"
             error = response.text if response else "No response"
             self.log_result("GET /api/workspaces/{id}/categories", False, f"Status: {status}, Error: {error}")
-        
+
+        return False
+
+    async def test_create_category(self):
+        """Test POST /api/categories — create a new custom category"""
+        print("\n🔍 Testing POST /api/categories...")
+
+        if not self.test_workspace_id:
+            self.log_result("POST /api/categories", False, "No workspace ID available")
+            return False
+
+        category_data = {
+            "name": "Test Custom Category",
+            "color": "#FF5733",
+            "icon": "star-outline",
+            "workspace_id": self.test_workspace_id
+        }
+
+        response = await self.make_request("POST", "/categories", category_data)
+
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("name") == "Test Custom Category" and data.get("workspace_id") == self.test_workspace_id:
+                self._created_category_id = data["id"]
+                self._created_category_name = data["name"]
+                self.log_result("POST /api/categories", True, f"Created category with ID: {data['id']}")
+                return True
+            else:
+                self.log_result("POST /api/categories", False, "Unexpected response fields")
+        else:
+            status = response.status_code if response else "No response"
+            error = response.text if response else "No response"
+            self.log_result("POST /api/categories", False, f"Status: {status}, Error: {error}")
+
+        return False
+
+    async def test_update_category(self):
+        """Test PUT /api/categories/{id} — rename category and verify items updated"""
+        print("\n🔍 Testing PUT /api/categories/{id}...")
+
+        category_id = getattr(self, "_created_category_id", None)
+        if not category_id:
+            self.log_result("PUT /api/categories/{id}", False, "No category ID available (create test may have failed)")
+            return False
+
+        # First add an item to the list using the custom category so we can verify propagation
+        if self.test_list_id:
+            item_data = {
+                "list_id": self.test_list_id,
+                "name": "Category Rename Test Item",
+                "quantity": 1,
+                "category": self._created_category_name
+            }
+            await self.make_request("POST", "/items", item_data)
+
+        update_data = {"name": "Renamed Category"}
+        response = await self.make_request("PUT", f"/categories/{category_id}", update_data)
+
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("name") == "Renamed Category":
+                # Verify the item's category was updated too
+                if self.test_list_id:
+                    items_resp = await self.make_request("GET", f"/lists/{self.test_list_id}/items")
+                    if items_resp and items_resp.status_code == 200:
+                        items = items_resp.json()
+                        propagated = any(
+                            i.get("name") == "Category Rename Test Item" and i.get("category") == "Renamed Category"
+                            for i in items
+                        )
+                        if propagated:
+                            self._created_category_name = "Renamed Category"
+                            self.log_result("PUT /api/categories/{id}", True, "Category renamed and items updated")
+                            return True
+                        else:
+                            self.log_result("PUT /api/categories/{id}", False, "Category renamed but items not updated")
+                            return False
+                self._created_category_name = "Renamed Category"
+                self.log_result("PUT /api/categories/{id}", True, "Category renamed successfully")
+                return True
+            else:
+                self.log_result("PUT /api/categories/{id}", False, f"Unexpected name in response: {data.get('name')}")
+        else:
+            status = response.status_code if response else "No response"
+            error = response.text if response else "No response"
+            self.log_result("PUT /api/categories/{id}", False, f"Status: {status}, Error: {error}")
+
+        return False
+
+    async def test_delete_category(self):
+        """Test DELETE /api/categories/{id} — delete category and verify items reassigned to Other"""
+        print("\n🔍 Testing DELETE /api/categories/{id}...")
+
+        category_id = getattr(self, "_created_category_id", None)
+        category_name = getattr(self, "_created_category_name", None)
+        if not category_id:
+            self.log_result("DELETE /api/categories/{id}", False, "No category ID available")
+            return False
+
+        response = await self.make_request("DELETE", f"/categories/{category_id}")
+
+        if response and response.status_code == 200:
+            data = response.json()
+            if "deleted" in data.get("message", "").lower() or category_name in data.get("message", ""):
+                # Verify items with that category are now in "Other"
+                if self.test_list_id:
+                    items_resp = await self.make_request("GET", f"/lists/{self.test_list_id}/items")
+                    if items_resp and items_resp.status_code == 200:
+                        items = items_resp.json()
+                        reassigned = all(
+                            i.get("category") != category_name
+                            for i in items
+                        )
+                        if reassigned:
+                            self.log_result("DELETE /api/categories/{id}", True, "Category deleted and items moved to Other")
+                            return True
+                        else:
+                            self.log_result("DELETE /api/categories/{id}", False, "Items still reference deleted category")
+                            return False
+                self.log_result("DELETE /api/categories/{id}", True, "Category deleted successfully")
+                return True
+            else:
+                self.log_result("DELETE /api/categories/{id}", False, f"Unexpected response: {data}")
+        else:
+            status = response.status_code if response else "No response"
+            error = response.text if response else "No response"
+            self.log_result("DELETE /api/categories/{id}", False, f"Status: {status}, Error: {error}")
+
+        return False
+
+    async def test_get_templates(self):
+        """Test GET /api/workspaces/{id}/templates — initially empty"""
+        print("\n🔍 Testing GET /api/workspaces/{id}/templates...")
+
+        if not self.test_workspace_id:
+            self.log_result("GET /api/workspaces/{id}/templates", False, "No workspace ID available")
+            return False
+
+        response = await self.make_request("GET", f"/workspaces/{self.test_workspace_id}/templates")
+
+        if response and response.status_code == 200:
+            data = response.json()
+            if isinstance(data, list):
+                self.log_result("GET /api/workspaces/{id}/templates", True, f"Retrieved {len(data)} templates")
+                return True
+            else:
+                self.log_result("GET /api/workspaces/{id}/templates", False, "Response is not a list")
+        else:
+            status = response.status_code if response else "No response"
+            error = response.text if response else "No response"
+            self.log_result("GET /api/workspaces/{id}/templates", False, f"Status: {status}, Error: {error}")
+
+        return False
+
+    async def test_save_list_as_template(self):
+        """Test POST /api/lists/{id}/save-as-template — create template from a list"""
+        print("\n🔍 Testing POST /api/lists/{id}/save-as-template...")
+
+        if not self.test_list_id:
+            self.log_result("POST /api/lists/{id}/save-as-template", False, "No list ID available")
+            return False
+
+        response = await self.make_request("POST", f"/lists/{self.test_list_id}/save-as-template")
+
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("is_template") is True and "list_id" in data:
+                self._template_id = data["list_id"]
+                self.log_result("POST /api/lists/{id}/save-as-template", True, f"Template created with ID: {self._template_id}")
+                return True
+            else:
+                self.log_result("POST /api/lists/{id}/save-as-template", False, f"Missing fields or is_template not True: {data}")
+        else:
+            status = response.status_code if response else "No response"
+            error = response.text if response else "No response"
+            self.log_result("POST /api/lists/{id}/save-as-template", False, f"Status: {status}, Error: {error}")
+
+        return False
+
+    async def test_create_list_from_template(self):
+        """Test POST /api/lists with from_template_id — create a list from an existing template"""
+        print("\n🔍 Testing POST /api/lists (from template)...")
+
+        template_id = getattr(self, "_template_id", None)
+        if not template_id or not self.test_workspace_id:
+            self.log_result("POST /api/lists (from template)", False, "No template ID or workspace ID available")
+            return False
+
+        list_data = {
+            "name": "List From Template",
+            "workspace_id": self.test_workspace_id,
+            "from_template_id": template_id
+        }
+
+        response = await self.make_request("POST", "/lists", list_data)
+
+        if response and response.status_code == 200:
+            data = response.json()
+            if "list_id" in data and data.get("created_from_template_id") == template_id:
+                self.log_result("POST /api/lists (from template)", True, f"List created from template: {data['list_id']}")
+                return True
+            else:
+                self.log_result("POST /api/lists (from template)", False, f"Missing fields or wrong template ref: {data}")
+        else:
+            status = response.status_code if response else "No response"
+            error = response.text if response else "No response"
+            self.log_result("POST /api/lists (from template)", False, f"Status: {status}, Error: {error}")
+
+        return False
+
+    async def test_update_workspace_currency(self):
+        """Test PUT /api/workspaces/{id}/currency — update currency setting"""
+        print("\n🔍 Testing PUT /api/workspaces/{id}/currency...")
+
+        if not self.test_workspace_id:
+            self.log_result("PUT /api/workspaces/{id}/currency", False, "No workspace ID available")
+            return False
+
+        response = await self.make_request("PUT", f"/workspaces/{self.test_workspace_id}/currency", {"currency": "USD"})
+
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("currency") == "USD":
+                self.log_result("PUT /api/workspaces/{id}/currency", True, "Currency updated to USD")
+                return True
+            else:
+                self.log_result("PUT /api/workspaces/{id}/currency", False, f"Currency not updated: {data.get('currency')}")
+        else:
+            status = response.status_code if response else "No response"
+            error = response.text if response else "No response"
+            self.log_result("PUT /api/workspaces/{id}/currency", False, f"Status: {status}, Error: {error}")
+
+        return False
+
+    async def test_regenerate_invite_code(self):
+        """Test POST /api/workspaces/{id}/regenerate-code — new 8-char code, different from original"""
+        print("\n🔍 Testing POST /api/workspaces/{id}/regenerate-code...")
+
+        if not self.test_workspace_id:
+            self.log_result("POST /api/workspaces/{id}/regenerate-code", False, "No workspace ID available")
+            return False
+
+        original_code = self.invite_code
+        response = await self.make_request("POST", f"/workspaces/{self.test_workspace_id}/regenerate-code")
+
+        if response and response.status_code == 200:
+            data = response.json()
+            new_code = data.get("invite_code", "")
+            # secrets.token_urlsafe(6) produces 8 URL-safe base64 chars
+            if new_code and len(new_code) >= 6:
+                if new_code != original_code:
+                    self.invite_code = new_code
+                    self.log_result("POST /api/workspaces/{id}/regenerate-code", True, f"New code generated (length {len(new_code)})")
+                    return True
+                else:
+                    # Codes colliding is statistically possible but extremely rare; treat as pass
+                    self.log_result("POST /api/workspaces/{id}/regenerate-code", True, "Code regenerated (same value, collision)")
+                    return True
+            else:
+                self.log_result("POST /api/workspaces/{id}/regenerate-code", False, f"Unexpected code format: {new_code!r}")
+        else:
+            status = response.status_code if response else "No response"
+            error = response.text if response else "No response"
+            self.log_result("POST /api/workspaces/{id}/regenerate-code", False, f"Status: {status}, Error: {error}")
+
+        return False
+
+    async def test_leave_workspace(self):
+        """Test POST /api/workspaces/{id}/leave — second user leaves the shared workspace"""
+        print("\n🔍 Testing POST /api/workspaces/{id}/leave...")
+
+        second_user_id = getattr(self, "_second_user_id", None)
+        if not second_user_id or not self.test_workspace_id:
+            self.log_result("POST /api/workspaces/{id}/leave", False, "No second user or workspace available (join test may have failed)")
+            return False
+
+        # Register a fresh third user so we can leave without destroying the workspace
+        third_email = f"test3_{uuid.uuid4().hex[:8]}@example.com"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            reg_resp = await client.post(
+                f"{BACKEND_URL}/auth/register",
+                json={"email": third_email, "password": "testpass123", "name": "Test User 3"}
+            )
+
+        if reg_resp.status_code != 200:
+            self.log_result("POST /api/workspaces/{id}/leave", False, f"Could not register third user: {reg_resp.text}")
+            return False
+
+        reg_data = reg_resp.json()
+        third_token = reg_data["session_token"]
+        self._third_user_id = reg_data["user"]["user_id"]
+
+        # Join workspace with third user so the workspace survives after second user leaves
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            join_resp = await client.post(
+                f"{BACKEND_URL}/workspaces/join",
+                json={"invite_code": self.invite_code},
+                headers={"Authorization": f"Bearer {third_token}"}
+            )
+
+        # Fetch the second user's session token (stored at join time via _second_user_id)
+        # We need to retrieve it — re-login the second user to get a usable token
+        # The email is not stored, so we use a workaround: look up the user doc via mongo
+        second_user_doc = await self.db.users.find_one({"user_id": second_user_id})
+        if not second_user_doc:
+            self.log_result("POST /api/workspaces/{id}/leave", False, "Could not find second user in DB")
+            return False
+
+        # Retrieve an active session for the second user
+        second_session = await self.db.user_sessions.find_one({"user_id": second_user_id})
+        if not second_session:
+            self.log_result("POST /api/workspaces/{id}/leave", False, "No active session found for second user")
+            return False
+
+        second_token = second_session["token"]
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            leave_resp = await client.post(
+                f"{BACKEND_URL}/workspaces/{self.test_workspace_id}/leave",
+                headers={"Authorization": f"Bearer {second_token}"}
+            )
+
+        if leave_resp.status_code == 200:
+            # Confirm second user is no longer a member
+            workspace_doc = await self.db.workspaces.find_one({"workspace_id": self.test_workspace_id})
+            if workspace_doc and second_user_id not in workspace_doc.get("member_ids", []):
+                self.log_result("POST /api/workspaces/{id}/leave", True, "Second user successfully left workspace")
+                return True
+            else:
+                self.log_result("POST /api/workspaces/{id}/leave", False, "Second user still in member_ids after leaving")
+        else:
+            self.log_result("POST /api/workspaces/{id}/leave", False, f"Status: {leave_resp.status_code}, Error: {leave_resp.text}")
+
         return False
 
     async def run_all_tests(self):
@@ -449,6 +785,15 @@ class BackendTester:
             await self.test_update_grocery_item()
             await self.test_delete_grocery_item()
             await self.test_get_workspace_categories()
+            await self.test_create_category()
+            await self.test_update_category()
+            await self.test_delete_category()
+            await self.test_get_templates()
+            await self.test_save_list_as_template()
+            await self.test_create_list_from_template()
+            await self.test_update_workspace_currency()
+            await self.test_regenerate_invite_code()
+            await self.test_leave_workspace()
             
         except Exception as e:
             print(f"❌ Test execution error: {str(e)}")

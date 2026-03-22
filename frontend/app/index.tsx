@@ -22,6 +22,9 @@ import {
 import { EXPO_PUBLIC_BACKEND_URL } from '../components/constants';
 import { FontMap, Category, GroceryItem } from '../components/types';
 import type { TabName } from '../components/types';
+import { offlineCache } from '../services/offlineCache';
+import { syncQueue } from '../services/syncQueue';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../components/ThemeContext';
 import BottomTabBar from '../components/BottomTabBar';
@@ -50,7 +53,9 @@ export default function GroceryTodo() {
     user, currentWorkspace, currentList, lists, templates, setCurrentList, createList,
     isLoading: authLoading, isAuthenticated, login, register, logout, sessionToken,
     authError, clearAuthError, getInviteCode, leaveWorkspace, deleteWorkspace,
+    isOnline, wasOffline, pendingSyncCount, refreshPendingCount,
   } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabName>('pantry');
@@ -69,6 +74,8 @@ export default function GroceryTodo() {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const font: FontMap = useMemo(() => ({
     display: fontsLoaded ? 'PlusJakartaSans_700Bold' : undefined,
@@ -99,13 +106,37 @@ export default function GroceryTodo() {
       const res = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/lists/${currentList.list_id}/items`, {
         headers: { 'Authorization': `Bearer ${sessionToken}` }
       });
-      if (res.ok) setItems(await res.json());
-    } catch (e) { console.error(e); }
-    setLoading(false);
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data);
+        await offlineCache.setItems(currentList.list_id, data);
+        setLastSynced(new Date());
+      }
+    } catch (e) {
+      // Offline: serve cached items for this list
+      const cached = await offlineCache.getItems(currentList.list_id);
+      if (cached) setItems(cached.data);
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, [sessionToken, currentList]);
 
   useEffect(() => { if (currentWorkspace) fetchCategories(); }, [currentWorkspace, fetchCategories]);
   useEffect(() => { if (currentList) fetchItems(); }, [currentList, fetchItems]);
+
+  // When connectivity returns, flush queued mutations then re-confirm server state.
+  // Flush runs unconditionally (not gated on currentList); fetchItems is gated.
+  useEffect(() => {
+    if (!wasOffline || !sessionToken) return;
+    (async () => {
+      setIsSyncing(true);
+      await syncQueue.flush(sessionToken);
+      await refreshPendingCount();
+      if (currentList) await fetchItems();
+      setIsSyncing(false);
+    })();
+  }, [wasOffline, sessionToken, currentList, fetchItems, refreshPendingCount]);
 
   if (authLoading || !fontsLoaded) {
     return (
@@ -240,6 +271,20 @@ export default function GroceryTodo() {
     );
   }
 
+  const syncStatusLabel = (() => {
+    if (isSyncing) return 'Syncing…';
+    if (!isOnline) {
+      const parts: string[] = ['Offline'];
+      if (lastSynced) {
+        const mins = Math.floor((Date.now() - lastSynced.getTime()) / 60000);
+        parts.push(`synced ${mins < 1 ? 'just now' : `${mins} min ago`}`);
+      }
+      if (pendingSyncCount > 0) parts.push(`${pendingSyncCount} pending`);
+      return parts.join(' · ');
+    }
+    return null;
+  })();
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <StatusBar
@@ -247,6 +292,32 @@ export default function GroceryTodo() {
         translucent
         backgroundColor="transparent"
       />
+      {(syncStatusLabel) && (
+        <View style={{
+          backgroundColor: isSyncing ? '#1a6b3c' : '#795c00',
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingTop: (insets.top || 0) + 8,
+          paddingBottom: 8,
+          gap: 8,
+          zIndex: 100,
+        }}>
+          <Ionicons
+            name={isSyncing ? 'sync-outline' : 'cloud-offline-outline'}
+            size={15}
+            color="#fff"
+          />
+          <Text style={{
+            color: '#fff',
+            fontSize: 13,
+            fontFamily: font.body,
+            flex: 1,
+          }}>
+            {syncStatusLabel}
+          </Text>
+        </View>
+      )}
       <View style={{ flex: 1 }}>
         {activeTab === 'pantry' && (
           <PantryScreen
