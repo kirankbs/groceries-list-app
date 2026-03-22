@@ -57,9 +57,18 @@ cd frontend && yarn lint
 │   │   └── index.tsx    # Entire app UI (~1800 lines, single screen with modals)
 │   ├── contexts/
 │   │   └── AuthContext.tsx  # All auth + workspace + list state and API calls
+│   ├── services/
+│   │   ├── offlineCache.ts  # AsyncStorage wrapper (lists + items cache)
+│   │   └── syncQueue.ts     # Offline mutation queue (checkbox toggles)
+│   ├── hooks/
+│   │   └── useNetworkStatus.ts  # NetInfo wrapper — isOnline, wasOffline
+│   ├── __tests__/       # Jest unit tests (offlineCache, syncQueue, useNetworkStatus)
 │   └── .env             # EXPO_PUBLIC_BACKEND_URL
+├── maestro/flows/       # Maestro E2E flows (login, add item, offline check, reconnect)
 ├── backend_test.py      # Integration tests (root level, not in backend/)
-└── memory/PRD.md        # Detailed product requirements document
+├── test.sh              # Run all test layers in sequence
+└── .github/workflows/
+    └── ci.yml           # GitHub Actions: frontend Jest + backend integration on every PR
 ```
 
 ### Backend (FastAPI + MongoDB)
@@ -112,6 +121,36 @@ EXPO_PUBLIC_BACKEND_URL=<backend-url>
 - Personal households are type `"personal"` and cannot be deleted or joined via invite code
 - Shared households have an 8-char `invite_code` and can be joined/left
 
-## Testing Notes
+## Testing
 
-`backend_test.py` registers a test user via `POST /api/auth/register`, then runs HTTP requests against the running backend at `http://localhost:8001/api`.
+### Run all layers
+```bash
+./test.sh
+```
+
+### Layer 1 — Frontend unit tests (headless, always runnable)
+```bash
+cd frontend && yarn test
+```
+28 tests covering `offlineCache`, `syncQueue`, `useNetworkStatus`. No server or device needed.
+
+### Layer 2 — Backend integration tests
+```bash
+# Requires: uvicorn running + MongoDB
+python backend_test.py
+```
+Covers auth, workspaces (CRUD, invite, leave, currency), lists, items, categories, templates.
+`backend_test.py` registers a fresh test user on each run via `POST /api/auth/register`.
+
+### Layer 3 — E2E tests (Maestro)
+```bash
+# Requires: iOS simulator or Android emulator + Expo Go running
+# Maestro installed at ~/.maestro/bin/maestro
+maestro test maestro/flows/
+```
+Flows: login → add item → check item offline → reconnect sync.
+`appId` in flow files is `host.exp.Exponent` (Expo Go). Update for standalone builds.
+
+### CI (GitHub Actions)
+Layers 1 and 2 run automatically on every PR to `main` via `.github/workflows/ci.yml`.
+MongoDB is provisioned as a service container — no manual setup needed in CI.
