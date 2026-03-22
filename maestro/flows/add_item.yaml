@@ -1,0 +1,36 @@
+# appId for Expo Go (development). Replace with actual bundle ID for standalone builds.
+appId: host.exp.Exponent
+---
+# Assumes the user is already logged in and on the Pantry tab.
+# Run login.yaml first, or combine flows using the `runFlow` command.
+
+# Confirm we're on the Pantry tab
+- assertVisible:
+    text: "Pantry"
+
+# Tap the FAB (floating "+" button) to open the Add Item modal.
+# The FAB has no text label — Maestro will match the "+" icon via its accessibility role.
+# If this fails, add accessibilityLabel="Add item" to the TouchableOpacity in PantryScreen.tsx.
+- tapOn:
+    id: "add"  # Ionicons name="add" — fallback: tap by position if id matching fails
+
+# The Add New Item modal should appear
+- assertVisible:
+    text: "Add New Item"
+
+# Type the item name
+- tapOn:
+    text: "e.g. Organic Honey Crisp Apples"  # placeholder text on the item name input
+- inputText: "Test Apple"
+
+# Save the item
+- tapOn:
+    text: "Save Item"
+
+# Modal should close and the item should appear in the pantry list
+- assertVisible:
+    text: "Test Apple"
+
+# Confirm the Add Item modal is gone
+- assertNotVisible:
+    text: "Add New Item"
