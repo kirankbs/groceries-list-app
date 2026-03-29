@@ -18,10 +18,8 @@ from datetime import datetime, timezone, timedelta
 import secrets
 import bcrypt
 import anthropic
-import smtplib
 import random
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests as http_requests
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,11 +40,8 @@ ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 if not ANTHROPIC_API_KEY:
     warnings.warn("ANTHROPIC_API_KEY not set — receipt scanning will fail", RuntimeWarning)
 
-SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
-SMTP_USER = os.environ.get('SMTP_USER', '')
-SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
-SMTP_FROM = os.environ.get('SMTP_FROM', '')
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+RESEND_FROM = os.environ.get('RESEND_FROM', 'The Living Pantry <onboarding@resend.dev>')
 
 ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:8081,http://localhost:19006').split(',')
 
@@ -493,21 +488,13 @@ def generate_otp() -> str:
     return str(random.randint(100000, 999999))
 
 def send_reset_email(to_email: str, code: str):
-    if not SMTP_USER or not SMTP_PASSWORD:
-        logger.warning("SMTP not configured — reset code not sent")
+    if not RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY not configured — reset code not sent")
         return
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Your password reset code: {code}"
-        msg["From"] = SMTP_FROM or SMTP_USER
-        msg["To"] = to_email
-        text = f"Your password reset code is: {code}\n\nThis code expires in {RESET_CODE_EXPIRY_MINUTES} minutes.\n\nIf you didn't request this, ignore this email."
         html = f"""
         <div style="font-family: -apple-system, sans-serif; max-width: 400px; margin: 0 auto; padding: 32px;">
             <div style="text-align: center; margin-bottom: 24px;">
-                <div style="display: inline-block; background: #006a28; border-radius: 12px; padding: 12px; margin-bottom: 8px;">
-                    <span style="color: white; font-size: 20px;">🥬</span>
-                </div>
                 <h2 style="color: #1a1c1a; margin: 8px 0 4px;">The Living Pantry</h2>
             </div>
             <p style="color: #424940; font-size: 14px;">Here's your password reset code:</p>
@@ -517,13 +504,20 @@ def send_reset_email(to_email: str, code: str):
             <p style="color: #72796f; font-size: 12px;">This code expires in {RESET_CODE_EXPIRY_MINUTES} minutes. If you didn't request this, ignore this email.</p>
         </div>
         """
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_USER, to_email, msg.as_string())
-        logger.info(f"Reset code sent to {to_email}")
+        resp = http_requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            json={
+                "from": RESEND_FROM,
+                "to": [to_email],
+                "subject": f"Your password reset code: {code}",
+                "html": html,
+            },
+        )
+        if resp.status_code == 200:
+            logger.info(f"Reset code sent to {to_email}")
+        else:
+            logger.error(f"Resend API error: {resp.status_code} {resp.text}")
     except Exception as e:
         logger.error(f"Failed to send reset email to {to_email}: {e}")
 
