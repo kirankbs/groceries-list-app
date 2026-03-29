@@ -85,6 +85,15 @@ class BackendTester:
             await self.db.categories.delete_many({"workspace_id": {"$in": ws_ids}})
             await self.db.workspaces.delete_many({"workspace_id": {"$in": ws_ids}})
 
+        # Clean up password reset codes for test users
+        test_emails = []
+        for uid in user_ids:
+            user = await self.db.users.find_one({"user_id": uid}, {"email": 1})
+            if user:
+                test_emails.append(user["email"])
+        if test_emails:
+            await self.db.password_reset_codes.delete_many({"email": {"$in": test_emails}})
+
         for uid in user_ids:
             await self.db.user_sessions.delete_many({"user_id": uid})
             await self.db.users.delete_many({"user_id": uid})
@@ -765,6 +774,136 @@ class BackendTester:
 
         return False
 
+    async def test_forgot_password_flow(self):
+        """Test POST /api/auth/forgot-password and POST /api/auth/reset-password"""
+        print("\n🔍 Testing forgot password flow...")
+
+        # Get the test user's email
+        user_doc = await self.db.users.find_one({"user_id": self.test_user_id}, {"email": 1})
+        test_email = user_doc["email"]
+
+        # Step 1: Request a reset code
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{BACKEND_URL}/auth/forgot-password",
+                json={"email": test_email}
+            )
+
+        if response.status_code != 200:
+            self.log_result("POST /api/auth/forgot-password", False, f"Status: {response.status_code}")
+            return
+
+        self.log_result("POST /api/auth/forgot-password", True, "Reset code requested")
+
+        # Step 2: Read the code hash from DB and test with wrong code
+        code_doc = await self.db.password_reset_codes.find_one({"email": test_email})
+        if not code_doc:
+            self.log_result("Forgot password — code stored in DB", False, "No code document found")
+            return
+
+        self.log_result("Forgot password — code stored in DB", True)
+
+        # Step 3: Try reset with wrong code
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{BACKEND_URL}/auth/reset-password",
+                json={"email": test_email, "code": "000000", "new_password": "newpass12345"}
+            )
+
+        if response.status_code == 400 and "Invalid code" in response.json().get("detail", ""):
+            self.log_result("POST /api/auth/reset-password (wrong code)", True, "Rejected as expected")
+        else:
+            self.log_result("POST /api/auth/reset-password (wrong code)", False, f"Status: {response.status_code}")
+            return
+
+        # Step 4: Verify attempts incremented
+        code_doc = await self.db.password_reset_codes.find_one({"email": test_email})
+        if code_doc and code_doc["attempts"] == 1:
+            self.log_result("Forgot password — attempts incremented", True)
+        else:
+            self.log_result("Forgot password — attempts incremented", False, f"Attempts: {code_doc.get('attempts') if code_doc else 'N/A'}")
+
+        # Step 5: Request a fresh code (need to wait for cooldown or clear it)
+        await self.db.password_reset_codes.delete_many({"email": test_email})
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{BACKEND_URL}/auth/forgot-password",
+                json={"email": test_email}
+            )
+
+        # Read the actual code by brute-checking (we know it's 6 digits, but let's read hash and use bcrypt)
+        import bcrypt
+        code_doc = await self.db.password_reset_codes.find_one({"email": test_email})
+        actual_code = None
+        for candidate in range(100000, 1000000):
+            if bcrypt.checkpw(str(candidate).encode(), code_doc["code_hash"].encode()):
+                actual_code = str(candidate)
+                break
+
+        if not actual_code:
+            self.log_result("Forgot password — recover OTP from DB", False, "Could not recover code")
+            return
+
+        self.log_result("Forgot password — recover OTP from DB", True)
+
+        # Step 6: Reset with correct code
+        new_password = "resetpass12345"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{BACKEND_URL}/auth/reset-password",
+                json={"email": test_email, "code": actual_code, "new_password": new_password}
+            )
+
+        if response.status_code == 200:
+            self.log_result("POST /api/auth/reset-password (correct code)", True, "Password reset successfully")
+        else:
+            self.log_result("POST /api/auth/reset-password (correct code)", False, f"Status: {response.status_code}, Error: {response.text}")
+            return
+
+        # Step 7: Verify old session is invalidated
+        old_session = await self.db.user_sessions.find_one({"session_token": self.session_token})
+        if old_session is None:
+            self.log_result("Forgot password — old sessions invalidated", True)
+        else:
+            self.log_result("Forgot password — old sessions invalidated", False, "Old session still exists")
+
+        # Step 8: Login with new password
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{BACKEND_URL}/auth/login",
+                json={"email": test_email, "password": new_password}
+            )
+
+        if response.status_code == 200:
+            data = response.json()
+            self.session_token = data["session_token"]
+            self.log_result("Login with new password after reset", True)
+        else:
+            self.log_result("Login with new password after reset", False, f"Status: {response.status_code}")
+
+        # Step 9: Verify code doc is cleaned up
+        code_doc = await self.db.password_reset_codes.find_one({"email": test_email})
+        if code_doc is None:
+            self.log_result("Forgot password — code cleaned up after use", True)
+        else:
+            self.log_result("Forgot password — code cleaned up after use", False, "Code doc still exists")
+
+    async def test_forgot_password_nonexistent_email(self):
+        """Test forgot password with non-existent email doesn't leak info"""
+        print("\n🔍 Testing forgot password with non-existent email...")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{BACKEND_URL}/auth/forgot-password",
+                json={"email": "nonexistent_user_12345@example.com"}
+            )
+
+        if response.status_code == 200:
+            self.log_result("Forgot password (non-existent email)", True, "Returns 200 without leaking email existence")
+        else:
+            self.log_result("Forgot password (non-existent email)", False, f"Status: {response.status_code}")
+
     async def run_all_tests(self):
         """Run all backend API tests"""
         print("🚀 Starting Backend API Tests for Multi-Workspace Grocery Todo App")
@@ -794,6 +933,8 @@ class BackendTester:
             await self.test_update_workspace_currency()
             await self.test_regenerate_invite_code()
             await self.test_leave_workspace()
+            await self.test_forgot_password_nonexistent_email()
+            await self.test_forgot_password_flow()
             
         except Exception as e:
             print(f"❌ Test execution error: {str(e)}")
