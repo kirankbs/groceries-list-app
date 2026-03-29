@@ -18,6 +18,10 @@ from datetime import datetime, timezone, timedelta
 import secrets
 import bcrypt
 import anthropic
+import smtplib
+import random
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,6 +41,12 @@ db = client[os.environ['DB_NAME']]
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 if not ANTHROPIC_API_KEY:
     warnings.warn("ANTHROPIC_API_KEY not set — receipt scanning will fail", RuntimeWarning)
+
+SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
+SMTP_USER = os.environ.get('SMTP_USER', '')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
+SMTP_FROM = os.environ.get('SMTP_FROM', '')
 
 ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:8081,http://localhost:19006').split(',')
 
@@ -153,6 +163,14 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str = Field(min_length=8)
 
 class WorkspaceCurrencyUpdate(BaseModel):
     currency: str
@@ -467,6 +485,49 @@ async def process_receipt_background(receipt_id: str, list_id: str, image_base64
         )
 
 
+RESET_CODE_EXPIRY_MINUTES = 10
+RESET_CODE_COOLDOWN_SECONDS = 60
+RESET_CODE_MAX_ATTEMPTS = 3
+
+def generate_otp() -> str:
+    return str(random.randint(100000, 999999))
+
+def send_reset_email(to_email: str, code: str):
+    if not SMTP_USER or not SMTP_PASSWORD:
+        logger.warning("SMTP not configured — reset code not sent")
+        return
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Your password reset code: {code}"
+        msg["From"] = SMTP_FROM or SMTP_USER
+        msg["To"] = to_email
+        text = f"Your password reset code is: {code}\n\nThis code expires in {RESET_CODE_EXPIRY_MINUTES} minutes.\n\nIf you didn't request this, ignore this email."
+        html = f"""
+        <div style="font-family: -apple-system, sans-serif; max-width: 400px; margin: 0 auto; padding: 32px;">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="display: inline-block; background: #006a28; border-radius: 12px; padding: 12px; margin-bottom: 8px;">
+                    <span style="color: white; font-size: 20px;">🥬</span>
+                </div>
+                <h2 style="color: #1a1c1a; margin: 8px 0 4px;">The Living Pantry</h2>
+            </div>
+            <p style="color: #424940; font-size: 14px;">Here's your password reset code:</p>
+            <div style="background: #f0f0f0; border-radius: 12px; padding: 20px; text-align: center; margin: 16px 0;">
+                <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #006a28;">{code}</span>
+            </div>
+            <p style="color: #72796f; font-size: 12px;">This code expires in {RESET_CODE_EXPIRY_MINUTES} minutes. If you didn't request this, ignore this email.</p>
+        </div>
+        """
+        msg.attach(MIMEText(text, "plain"))
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_USER, to_email, msg.as_string())
+        logger.info(f"Reset code sent to {to_email}")
+    except Exception as e:
+        logger.error(f"Failed to send reset email to {to_email}: {e}")
+
+
 # ==================== AUTH ROUTES ====================
 
 @api_router.post("/auth/register")
@@ -555,6 +616,76 @@ async def logout(request: Request, response: Response):
         await db.user_sessions.delete_many({"session_token": session_token})
     response.delete_cookie(key="session_token", path="/")
     return {"message": "Logged out successfully"}
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(input: ForgotPasswordRequest, background_tasks: BackgroundTasks):
+    email = input.email.strip().lower()
+    # Always return success to avoid leaking whether an account exists
+    success_msg = {"message": "If an account with that email exists, a reset code has been sent."}
+
+    user_doc = await db.users.find_one({"email": email}, {"_id": 0, "user_id": 1})
+    if not user_doc:
+        return success_msg
+
+    existing = await db.password_reset_codes.find_one({"email": email})
+    if existing:
+        created = existing["created_at"]
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        elapsed = (datetime.now(timezone.utc) - created).total_seconds()
+        if elapsed < RESET_CODE_COOLDOWN_SECONDS:
+            return success_msg
+
+    code = generate_otp()
+    code_hash = bcrypt.hashpw(code.encode(), bcrypt.gensalt()).decode()
+    now = datetime.now(timezone.utc)
+    await db.password_reset_codes.delete_many({"email": email})
+    await db.password_reset_codes.insert_one({
+        "email": email,
+        "code_hash": code_hash,
+        "attempts": 0,
+        "created_at": now,
+        "expires_at": now + timedelta(minutes=RESET_CODE_EXPIRY_MINUTES),
+    })
+
+    background_tasks.add_task(send_reset_email, email, code)
+    return success_msg
+
+@api_router.post("/auth/reset-password")
+async def reset_password(input: ResetPasswordRequest):
+    email = input.email.strip().lower()
+    code_doc = await db.password_reset_codes.find_one({"email": email})
+    if not code_doc:
+        raise HTTPException(status_code=400, detail="No reset code found. Please request a new one.")
+
+    expires_at = code_doc["expires_at"]
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        await db.password_reset_codes.delete_many({"email": email})
+        raise HTTPException(status_code=400, detail="Reset code has expired. Please request a new one.")
+
+    if code_doc["attempts"] >= RESET_CODE_MAX_ATTEMPTS:
+        await db.password_reset_codes.delete_many({"email": email})
+        raise HTTPException(status_code=400, detail="Too many attempts. Please request a new code.")
+
+    if not bcrypt.checkpw(input.code.encode(), code_doc["code_hash"].encode()):
+        await db.password_reset_codes.update_one(
+            {"email": email},
+            {"$inc": {"attempts": 1}}
+        )
+        remaining = RESET_CODE_MAX_ATTEMPTS - code_doc["attempts"] - 1
+        raise HTTPException(status_code=400, detail=f"Invalid code. {remaining} attempt(s) remaining.")
+
+    new_hash = bcrypt.hashpw(input.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one({"email": email}, {"$set": {"password_hash": new_hash}})
+
+    user_doc = await db.users.find_one({"email": email}, {"_id": 0, "user_id": 1})
+    if user_doc:
+        await db.user_sessions.delete_many({"user_id": user_doc["user_id"]})
+
+    await db.password_reset_codes.delete_many({"email": email})
+    return {"message": "Password reset successfully. You can now sign in with your new password."}
 
 
 # ==================== WORKSPACE ROUTES ====================
@@ -1241,6 +1372,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_db_indexes():
+    await db.password_reset_codes.create_index("expires_at", expireAfterSeconds=0)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

@@ -52,7 +52,8 @@ export default function GroceryTodo() {
   const {
     user, currentWorkspace, currentList, lists, templates, setCurrentList, createList,
     isLoading: authLoading, isAuthenticated, login, register, logout, sessionToken,
-    authError, clearAuthError, getInviteCode, leaveWorkspace, deleteWorkspace,
+    authError, clearAuthError, requestPasswordReset, confirmPasswordReset,
+    getInviteCode, leaveWorkspace, deleteWorkspace,
     isOnline, wasOffline, pendingSyncCount, refreshPendingCount,
   } = useAuth();
   const insets = useSafeAreaInsets();
@@ -70,6 +71,14 @@ export default function GroceryTodo() {
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+
+  const [forgotStep, setForgotStep] = useState<'idle' | 'email' | 'code' | 'success'>('idle');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -156,6 +165,177 @@ export default function GroceryTodo() {
       else { login(authEmail, authPassword); }
     };
 
+    const handleBackToLogin = () => {
+      setForgotStep('idle');
+      setResetEmail('');
+      setResetCode('');
+      setNewPassword('');
+      setResetError('');
+      setResetLoading(false);
+      setResendCooldown(0);
+    };
+
+    const startResendCooldown = () => {
+      setResendCooldown(60);
+      const interval = setInterval(() => {
+        setResendCooldown(prev => {
+          if (prev <= 1) { clearInterval(interval); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+    };
+
+    const handleRequestReset = async () => {
+      if (!resetEmail.trim()) { setResetError('Please enter your email address'); return; }
+      setResetLoading(true);
+      setResetError('');
+      const result = await requestPasswordReset(resetEmail);
+      setResetLoading(false);
+      if (result.success) {
+        setForgotStep('code');
+        startResendCooldown();
+      } else {
+        setResetError(result.error || 'Something went wrong');
+      }
+    };
+
+    const handleResendCode = async () => {
+      if (resendCooldown > 0) return;
+      setResetLoading(true);
+      setResetError('');
+      const result = await requestPasswordReset(resetEmail);
+      setResetLoading(false);
+      if (result.success) startResendCooldown();
+      else setResetError(result.error || 'Something went wrong');
+    };
+
+    const handleConfirmReset = async () => {
+      if (resetCode.length !== 6) { setResetError('Please enter the 6-digit code'); return; }
+      if (newPassword.length < 8) { setResetError('Password must be at least 8 characters'); return; }
+      setResetLoading(true);
+      setResetError('');
+      const result = await confirmPasswordReset(resetEmail, resetCode, newPassword);
+      setResetLoading(false);
+      if (result.success) setForgotStep('success');
+      else setResetError(result.error || 'Something went wrong');
+    };
+
+    const inputStyle = { backgroundColor: '#eae7e7', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, fontFamily: font.body, color: '#1a1c1a', marginBottom: 16 };
+    const labelStyle = { fontSize: 11, fontFamily: font.bodySemiBold, color: '#424940', textTransform: 'uppercase' as const, letterSpacing: 0.8, marginBottom: 6 };
+
+    const renderErrorBanner = (error: string) => (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#ffdad6', padding: 12, borderRadius: 12, marginBottom: 12 }}>
+        <Ionicons name="alert-circle" size={16} color="#ba1a1a" />
+        <Text style={{ color: '#ba1a1a', fontSize: 13, fontFamily: font.body, flex: 1 }}>{error}</Text>
+      </View>
+    );
+
+    const renderForgotPasswordCard = () => {
+      if (forgotStep === 'email') {
+        return (
+          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, elevation: 2 }}>
+            <TouchableOpacity onPress={handleBackToLogin} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+              <Ionicons name="arrow-back" size={20} color="#006a28" />
+              <Text style={{ color: '#006a28', fontSize: 14, fontFamily: font.bodySemiBold, marginLeft: 4 }}>Back</Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 20, fontFamily: font.display, color: '#1a1c1a', textAlign: 'center', marginBottom: 4 }}>Reset Password</Text>
+            <Text style={{ fontSize: 13, fontFamily: font.body, color: '#424940', textAlign: 'center', marginBottom: 24 }}>
+              Enter your email and we&apos;ll send you a reset code
+            </Text>
+            <Text style={labelStyle}>EMAIL ADDRESS</Text>
+            <TextInput
+              style={inputStyle}
+              placeholder="hello@livingpantry.com"
+              placeholderTextColor="#72796f"
+              value={resetEmail}
+              onChangeText={t => { setResetEmail(t); setResetError(''); }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoFocus
+            />
+            {resetError ? renderErrorBanner(resetError) : null}
+            <TouchableOpacity
+              style={{ backgroundColor: '#006a28', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4, opacity: resetLoading ? 0.6 : 1 }}
+              onPress={handleRequestReset}
+              disabled={resetLoading}
+            >
+              {resetLoading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: 16, fontFamily: font.bodyBold }}>Send Reset Code</Text>}
+            </TouchableOpacity>
+          </View>
+        );
+      }
+
+      if (forgotStep === 'code') {
+        return (
+          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, elevation: 2 }}>
+            <TouchableOpacity onPress={() => setForgotStep('email')} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+              <Ionicons name="arrow-back" size={20} color="#006a28" />
+              <Text style={{ color: '#006a28', fontSize: 14, fontFamily: font.bodySemiBold, marginLeft: 4 }}>Back</Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 20, fontFamily: font.display, color: '#1a1c1a', textAlign: 'center', marginBottom: 4 }}>Enter Code</Text>
+            <Text style={{ fontSize: 13, fontFamily: font.body, color: '#424940', textAlign: 'center', marginBottom: 24 }}>
+              We sent a 6-digit code to {resetEmail}
+            </Text>
+            <Text style={labelStyle}>RESET CODE</Text>
+            <TextInput
+              style={{ ...inputStyle, fontSize: 24, fontFamily: font.bodyBold, textAlign: 'center', letterSpacing: 8 }}
+              placeholder="000000"
+              placeholderTextColor="#72796f"
+              value={resetCode}
+              onChangeText={t => { setResetCode(t.replace(/[^0-9]/g, '').slice(0, 6)); setResetError(''); }}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
+            />
+            <Text style={labelStyle}>NEW PASSWORD</Text>
+            <TextInput
+              style={inputStyle}
+              placeholder="At least 8 characters"
+              placeholderTextColor="#72796f"
+              value={newPassword}
+              onChangeText={t => { setNewPassword(t); setResetError(''); }}
+              secureTextEntry
+            />
+            {resetError ? renderErrorBanner(resetError) : null}
+            <TouchableOpacity
+              style={{ backgroundColor: '#006a28', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4, opacity: resetLoading ? 0.6 : 1 }}
+              onPress={handleConfirmReset}
+              disabled={resetLoading}
+            >
+              {resetLoading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: 16, fontFamily: font.bodyBold }}>Reset Password</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleResendCode} disabled={resendCooldown > 0} style={{ alignItems: 'center', marginTop: 16 }}>
+              <Text style={{ color: resendCooldown > 0 ? '#72796f' : '#006a28', fontSize: 13, fontFamily: font.bodySemiBold }}>
+                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        );
+      }
+
+      if (forgotStep === 'success') {
+        return (
+          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, elevation: 2, alignItems: 'center' }}>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#d4edda', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+              <Ionicons name="checkmark-circle" size={32} color="#006a28" />
+            </View>
+            <Text style={{ fontSize: 20, fontFamily: font.display, color: '#1a1c1a', marginBottom: 8 }}>Password Reset</Text>
+            <Text style={{ fontSize: 13, fontFamily: font.body, color: '#424940', textAlign: 'center', marginBottom: 24 }}>
+              Your password has been reset successfully. You can now sign in with your new password.
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: '#006a28', borderRadius: 14, paddingVertical: 16, alignItems: 'center', width: '100%' }}
+              onPress={handleBackToLogin}
+            >
+              <Text style={{ color: '#fff', fontSize: 16, fontFamily: font.bodyBold }}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      }
+
+      return null;
+    };
+
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f6f5' }}>
         <StatusBar barStyle="dark-content" />
@@ -172,100 +352,114 @@ export default function GroceryTodo() {
             </Text>
           </View>
 
-          {/* Feature chips */}
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 28 }}>
-            {[
-              { icon: 'people-outline', title: 'Collaborative Lists', desc: 'Plan meals together in real-time.' },
-              { icon: 'sync-outline', title: 'Real-time Sync', desc: 'Always up-to-date across devices.' },
-            ].map(f => (
-              <View key={f.title} style={{ flex: 1, backgroundColor: '#eae7e7', borderRadius: 16, padding: 14 }}>
-                <Ionicons name={f.icon as any} size={22} color="#006a28" />
-                <Text style={{ fontSize: 13, fontFamily: font.bodySemiBold, color: '#1a1c1a', marginTop: 8 }}>{f.title}</Text>
-                <Text style={{ fontSize: 11, fontFamily: font.body, color: '#424940', marginTop: 3 }}>{f.desc}</Text>
+          {forgotStep !== 'idle' ? (
+            <>
+              {renderForgotPasswordCard()}
+              <TouchableOpacity onPress={handleBackToLogin} style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#424940', fontSize: 14, fontFamily: font.body }}>
+                  Remember your password? <Text style={{ color: '#006a28', fontFamily: font.bodySemiBold }}>Sign In</Text>
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {/* Feature chips */}
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 28 }}>
+                {[
+                  { icon: 'people-outline', title: 'Collaborative Lists', desc: 'Plan meals together in real-time.' },
+                  { icon: 'sync-outline', title: 'Real-time Sync', desc: 'Always up-to-date across devices.' },
+                ].map(f => (
+                  <View key={f.title} style={{ flex: 1, backgroundColor: '#eae7e7', borderRadius: 16, padding: 14 }}>
+                    <Ionicons name={f.icon as any} size={22} color="#006a28" />
+                    <Text style={{ fontSize: 13, fontFamily: font.bodySemiBold, color: '#1a1c1a', marginTop: 8 }}>{f.title}</Text>
+                    <Text style={{ fontSize: 11, fontFamily: font.body, color: '#424940', marginTop: 3 }}>{f.desc}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
 
-          {/* Smart categories banner */}
-          <View style={{ backgroundColor: '#006a28', borderRadius: 20, padding: 18, marginBottom: 28 }}>
-            <Text style={{ fontSize: 18, fontFamily: font.display, color: '#fff' }}>Smart Categories</Text>
-            <Text style={{ fontSize: 13, fontFamily: font.body, color: '#fff', opacity: 0.85, marginTop: 6 }}>
-              Items automatically sorted by grocery aisle for faster shopping trips.
-            </Text>
-          </View>
+              {/* Smart categories banner */}
+              <View style={{ backgroundColor: '#006a28', borderRadius: 20, padding: 18, marginBottom: 28 }}>
+                <Text style={{ fontSize: 18, fontFamily: font.display, color: '#fff' }}>Smart Categories</Text>
+                <Text style={{ fontSize: 13, fontFamily: font.body, color: '#fff', opacity: 0.85, marginTop: 6 }}>
+                  Items automatically sorted by grocery aisle for faster shopping trips.
+                </Text>
+              </View>
 
-          {/* Auth card */}
-          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, elevation: 2 }}>
-            <Text style={{ fontSize: 20, fontFamily: font.display, color: '#1a1c1a', textAlign: 'center', marginBottom: 4 }}>
-              {isRegisterMode ? 'Create Account' : 'Welcome Back'}
-            </Text>
-            <Text style={{ fontSize: 13, fontFamily: font.body, color: '#424940', textAlign: 'center', marginBottom: 24 }}>
-              {isRegisterMode ? 'Join the pantry community' : 'Sign in to sync your pantry lists'}
-            </Text>
+              {/* Auth card */}
+              <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, elevation: 2 }}>
+                <Text style={{ fontSize: 20, fontFamily: font.display, color: '#1a1c1a', textAlign: 'center', marginBottom: 4 }}>
+                  {isRegisterMode ? 'Create Account' : 'Welcome Back'}
+                </Text>
+                <Text style={{ fontSize: 13, fontFamily: font.body, color: '#424940', textAlign: 'center', marginBottom: 24 }}>
+                  {isRegisterMode ? 'Join the pantry community' : 'Sign in to sync your pantry lists'}
+                </Text>
 
-            {isRegisterMode && (
-              <>
-                <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: '#424940', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>NAME</Text>
+                {isRegisterMode && (
+                  <>
+                    <Text style={labelStyle}>NAME</Text>
+                    <TextInput
+                      style={inputStyle}
+                      placeholder="Your name"
+                      placeholderTextColor="#72796f"
+                      value={authName}
+                      onChangeText={setAuthName}
+                      autoCapitalize="words"
+                    />
+                  </>
+                )}
+
+                <Text style={labelStyle}>EMAIL ADDRESS</Text>
                 <TextInput
-                  style={{ backgroundColor: '#eae7e7', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, fontFamily: font.body, color: '#1a1c1a', marginBottom: 16 }}
-                  placeholder="Your name"
+                  style={inputStyle}
+                  placeholder="hello@livingpantry.com"
                   placeholderTextColor="#72796f"
-                  value={authName}
-                  onChangeText={setAuthName}
-                  autoCapitalize="words"
+                  value={authEmail}
+                  onChangeText={t => { setAuthEmail(t); clearAuthError(); }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
                 />
-              </>
-            )}
 
-            <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: '#424940', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>EMAIL ADDRESS</Text>
-            <TextInput
-              style={{ backgroundColor: '#eae7e7', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, fontFamily: font.body, color: '#1a1c1a', marginBottom: 16 }}
-              placeholder="hello@livingpantry.com"
-              placeholderTextColor="#72796f"
-              value={authEmail}
-              onChangeText={t => { setAuthEmail(t); clearAuthError(); }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+                <Text style={labelStyle}>PASSWORD</Text>
+                <TextInput
+                  style={inputStyle}
+                  placeholder="Enter your password"
+                  placeholderTextColor="#72796f"
+                  value={authPassword}
+                  onChangeText={t => { setAuthPassword(t); clearAuthError(); }}
+                  secureTextEntry
+                />
 
-            <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: '#424940', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>PASSWORD</Text>
-            <TextInput
-              style={{ backgroundColor: '#eae7e7', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, fontFamily: font.body, color: '#1a1c1a', marginBottom: 16 }}
-              placeholder="Enter your password"
-              placeholderTextColor="#72796f"
-              value={authPassword}
-              onChangeText={t => { setAuthPassword(t); clearAuthError(); }}
-              secureTextEntry
-            />
+                {!isRegisterMode && (
+                  <TouchableOpacity onPress={() => { setForgotStep('email'); setResetEmail(authEmail); }} style={{ alignSelf: 'flex-end', marginTop: -8, marginBottom: 12 }}>
+                    <Text style={{ color: '#006a28', fontSize: 13, fontFamily: font.bodySemiBold }}>Forgot password?</Text>
+                  </TouchableOpacity>
+                )}
 
-            {authError && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#ffdad6', padding: 12, borderRadius: 12, marginBottom: 12 }}>
-                <Ionicons name="alert-circle" size={16} color="#ba1a1a" />
-                <Text style={{ color: '#ba1a1a', fontSize: 13, fontFamily: font.body, flex: 1 }}>{authError}</Text>
+                {authError && renderErrorBanner(authError)}
+
+                <TouchableOpacity
+                  style={{ backgroundColor: '#006a28', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4, opacity: authLoading ? 0.6 : 1 }}
+                  onPress={handleAuthSubmit}
+                  disabled={authLoading}
+                >
+                  {authLoading
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={{ color: '#fff', fontSize: 16, fontFamily: font.bodyBold }}>{isRegisterMode ? 'Create Account' : 'Sign In'}</Text>}
+                </TouchableOpacity>
               </View>
-            )}
 
-            <TouchableOpacity
-              style={{ backgroundColor: '#006a28', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4, opacity: authLoading ? 0.6 : 1 }}
-              onPress={handleAuthSubmit}
-              disabled={authLoading}
-            >
-              {authLoading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={{ color: '#fff', fontSize: 16, fontFamily: font.bodyBold }}>{isRegisterMode ? 'Create Account' : 'Sign In'}</Text>}
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity onPress={() => { setIsRegisterMode(!isRegisterMode); clearAuthError(); }} style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#424940', fontSize: 14, fontFamily: font.body }}>
+                  {isRegisterMode ? 'Already have an account? ' : "Don't have an account? "}
+                  <Text style={{ color: '#006a28', fontFamily: font.bodySemiBold }}>{isRegisterMode ? 'Sign In' : 'Register'}</Text>
+                </Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => { setIsRegisterMode(!isRegisterMode); clearAuthError(); }} style={{ paddingVertical: 20, alignItems: 'center' }}>
-            <Text style={{ color: '#424940', fontSize: 14, fontFamily: font.body }}>
-              {isRegisterMode ? 'Already have an account? ' : "Don't have an account? "}
-              <Text style={{ color: '#006a28', fontFamily: font.bodySemiBold }}>{isRegisterMode ? 'Sign In' : 'Register'}</Text>
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={{ textAlign: 'center', fontSize: 11, fontFamily: font.body, color: '#72796f', paddingBottom: 24 }}>
-            &quot;The kitchen is the heart of every home; let&apos;s keep it organized.&quot;
-          </Text>
+              <Text style={{ textAlign: 'center', fontSize: 11, fontFamily: font.body, color: '#72796f', paddingBottom: 24 }}>
+                &quot;The kitchen is the heart of every home; let&apos;s keep it organized.&quot;
+              </Text>
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
     );

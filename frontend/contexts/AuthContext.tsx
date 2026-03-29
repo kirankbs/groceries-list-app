@@ -72,6 +72,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   clearAuthError: () => void;
+  requestPasswordReset: (email: string) => Promise<{ success: boolean; error?: string }>;
+  confirmPasswordReset: (email: string, code: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   // Workspaces
   setCurrentWorkspace: (workspace: Workspace) => Promise<void>;
   createWorkspace: (name: string) => Promise<Workspace>;
@@ -297,6 +299,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [sessionToken, clearToken]);
 
   const clearAuthError = useCallback(() => setAuthError(null), []);
+
+  const requestPasswordReset = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (response.ok) return { success: true };
+      const err = await response.json();
+      return { success: false, error: err.detail || 'Request failed' };
+    } catch {
+      return { success: false, error: 'Could not connect to server' };
+    }
+  }, []);
+
+  const confirmPasswordReset = useCallback(async (email: string, code: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch(`${EXPO_PUBLIC_BACKEND_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code, new_password: newPassword }),
+      });
+      if (response.ok) return { success: true };
+      const err = await response.json();
+      return { success: false, error: err.detail || 'Reset failed' };
+    } catch {
+      return { success: false, error: 'Could not connect to server' };
+    }
+  }, []);
 
   const refreshUser = useCallback(async () => {
     if (sessionToken) {
@@ -602,7 +634,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user, workspaces, currentWorkspace, currentList, lists, templates,
         isLoading, isAuthenticated: !!user, sessionToken, authError,
         isOnline, wasOffline, pendingSyncCount, refreshPendingCount,
-        login, register, logout, refreshUser, clearAuthError,
+        login, register, logout, refreshUser, clearAuthError, requestPasswordReset, confirmPasswordReset,
         setCurrentWorkspace, createWorkspace, joinWorkspace, leaveWorkspace,
         deleteWorkspace, getInviteCode, regenerateInviteCode, fetchWorkspaces,
         setCurrentList, fetchLists, fetchTemplates, createList, updateList,
