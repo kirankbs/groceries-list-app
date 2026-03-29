@@ -5,6 +5,7 @@ Tests all backend APIs with proper authentication setup
 """
 
 import asyncio
+import bcrypt
 import httpx
 import json
 import uuid
@@ -832,20 +833,14 @@ class BackendTester:
                 json={"email": test_email}
             )
 
-        # Read the actual code by brute-checking (we know it's 6 digits, but let's read hash and use bcrypt)
-        import bcrypt
-        code_doc = await self.db.password_reset_codes.find_one({"email": test_email})
-        actual_code = None
-        for candidate in range(100000, 1000000):
-            if bcrypt.checkpw(str(candidate).encode(), code_doc["code_hash"].encode()):
-                actual_code = str(candidate)
-                break
-
-        if not actual_code:
-            self.log_result("Forgot password — recover OTP from DB", False, "Could not recover code")
-            return
-
-        self.log_result("Forgot password — recover OTP from DB", True)
+        # Overwrite the DB entry with a known code so the test doesn't brute-force bcrypt
+        known_code = "123456"
+        known_hash = bcrypt.hashpw(known_code.encode(), bcrypt.gensalt()).decode()
+        await self.db.password_reset_codes.update_one(
+            {"email": test_email}, {"$set": {"code_hash": known_hash}}
+        )
+        actual_code = known_code
+        self.log_result("Forgot password — seeded known OTP for test", True)
 
         # Step 6: Reset with correct code
         new_password = "resetpass12345"
