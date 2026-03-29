@@ -120,32 +120,18 @@ export default function ReceiptScanModal({
   );
 
   const pickImage = useCallback(
-    async (source: 'camera' | 'library') => {
+    async () => {
       setError(null);
 
-      let result: ImagePicker.ImagePickerResult;
-
-      if (source === 'camera') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) {
-          setError('Camera permission is required to take a photo.');
-          return;
-        }
-        result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ['images'],
-          quality: 0.8,
-        });
-      } else {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) {
-          setError('Photo library permission is required.');
-          return;
-        }
-        result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          quality: 0.8,
-        });
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setError('Photo library permission is required.');
+        return;
       }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      });
 
       if (result.canceled || !result.assets?.[0]) return;
 
@@ -260,51 +246,13 @@ export default function ReceiptScanModal({
             { color: theme.textSecondary, fontFamily: font.body },
           ]}
         >
-          Take a photo of your receipt and we&apos;ll match items to your list with
+          Choose a photo of your receipt and we&apos;ll match items to your list with
           prices filled in automatically.
         </Text>
 
         <TouchableOpacity
           style={[styles.optionCard, { backgroundColor: theme.inputBg }]}
-          onPress={() => pickImage('camera')}
-          activeOpacity={0.7}
-        >
-          <View
-            style={[
-              styles.optionIcon,
-              { backgroundColor: PALETTE.sageLight + '30' },
-            ]}
-          >
-            <Ionicons name="camera-outline" size={28} color={PALETTE.sage} />
-          </View>
-          <View style={styles.optionText}>
-            <Text
-              style={[
-                styles.optionTitle,
-                { color: theme.text, fontFamily: font.bodySemiBold },
-              ]}
-            >
-              Take Photo
-            </Text>
-            <Text
-              style={[
-                styles.optionSubtitle,
-                { color: theme.textSecondary, fontFamily: font.body },
-              ]}
-            >
-              Use your camera to capture the receipt
-            </Text>
-          </View>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={theme.textSecondary}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.optionCard, { backgroundColor: theme.inputBg }]}
-          onPress={() => pickImage('library')}
+          onPress={() => pickImage()}
           activeOpacity={0.7}
         >
           <View

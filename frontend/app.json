@@ -36,6 +36,7 @@
           "backgroundColor": "#000"
         }
       ],
+      ["expo-image-picker", { "cameraPermission": false }],
       "expo-secure-store",
       "expo-web-browser",
       "expo-build-properties"
