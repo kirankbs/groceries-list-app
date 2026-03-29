@@ -17,8 +17,7 @@
         "backgroundColor": "#000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.kirankbs.korbly",
-      "versionCode": 1
+      "package": "com.kirankbs.korbly"
     },
     "web": {
       "bundler": "metro",
@@ -36,7 +35,7 @@
           "backgroundColor": "#000"
         }
       ],
-      ["expo-image-picker", { "cameraPermission": false }],
+      ["expo-image-picker", { "cameraPermission": false, "microphonePermission": false }],
       "expo-secure-store",
       "expo-web-browser",
       "expo-build-properties"
