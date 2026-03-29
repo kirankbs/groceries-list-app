@@ -18,7 +18,6 @@ from datetime import datetime, timezone, timedelta
 import secrets
 import bcrypt
 import anthropic
-import random
 import requests as http_requests
 
 logging.basicConfig(
@@ -42,6 +41,8 @@ if not ANTHROPIC_API_KEY:
 
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 RESEND_FROM = os.environ.get('RESEND_FROM', 'The Living Pantry <onboarding@resend.dev>')
+if not RESEND_API_KEY:
+    warnings.warn("RESEND_API_KEY not set — password reset emails are disabled", RuntimeWarning)
 
 ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:8081,http://localhost:19006').split(',')
 
@@ -485,7 +486,7 @@ RESET_CODE_COOLDOWN_SECONDS = 60
 RESET_CODE_MAX_ATTEMPTS = 3
 
 def generate_otp() -> str:
-    return str(random.randint(100000, 999999))
+    return str(secrets.randbelow(900000) + 100000)
 
 def send_reset_email(to_email: str, code: str):
     if not RESEND_API_KEY:
@@ -510,12 +511,12 @@ def send_reset_email(to_email: str, code: str):
             json={
                 "from": RESEND_FROM,
                 "to": [to_email],
-                "subject": f"Your password reset code: {code}",
+                "subject": "Your password reset code",
                 "html": html,
             },
         )
         if resp.status_code == 200:
-            logger.info(f"Reset code sent to {to_email}")
+            logger.info("Reset code sent")
         else:
             logger.error(f"Resend API error: {resp.status_code} {resp.text}")
     except Exception as e:
@@ -664,11 +665,18 @@ async def reset_password(input: ResetPasswordRequest):
         raise HTTPException(status_code=400, detail="Too many attempts. Please request a new code.")
 
     if not bcrypt.checkpw(input.code.encode(), code_doc["code_hash"].encode()):
-        await db.password_reset_codes.update_one(
-            {"email": email},
-            {"$inc": {"attempts": 1}}
+        # Atomic increment: get the post-update attempts count so concurrent wrong-code
+        # requests can't both read the same stale value and bypass the lockout.
+        updated = await db.password_reset_codes.find_one_and_update(
+            {"email": email, "attempts": {"$lt": RESET_CODE_MAX_ATTEMPTS}},
+            {"$inc": {"attempts": 1}},
+            return_document=True,
         )
-        remaining = RESET_CODE_MAX_ATTEMPTS - code_doc["attempts"] - 1
+        if updated is None:
+            # Lost the race — another request hit the limit first; treat as locked out.
+            await db.password_reset_codes.delete_many({"email": email})
+            raise HTTPException(status_code=400, detail="Too many attempts. Please request a new code.")
+        remaining = max(0, RESET_CODE_MAX_ATTEMPTS - updated["attempts"])
         raise HTTPException(status_code=400, detail=f"Invalid code. {remaining} attempt(s) remaining.")
 
     new_hash = bcrypt.hashpw(input.new_password.encode(), bcrypt.gensalt()).decode()
