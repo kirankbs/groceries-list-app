@@ -16,6 +16,9 @@
 | `isAuthenticated` | `boolean` | Derived: `!!user` |
 | `sessionToken` | `string \| null` | In-memory token mirror |
 | `authError` | `string \| null` | Login/register error message |
+| `pendingSyncCount` | `number` | Count of items in offline sync queue |
+| `isOnline` | `boolean` | From `useNetworkStatus` hook |
+| `wasOffline` | `boolean` | One-cycle flag: true on offline→online transition only |
 
 ### Methods (all `useCallback`)
 
@@ -26,6 +29,9 @@
 | `logout(): Promise<void>` | POST /auth/logout; clears all state |
 | `refreshUser(): Promise<void>` | Re-fetches /auth/me with current token |
 | `clearAuthError(): void` | Sets authError = null |
+| `requestPasswordReset(email): Promise<{success, error?}>` | POST /auth/forgot-password; returns success/error |
+| `confirmPasswordReset(email, code, newPassword): Promise<{success, error?}>` | POST /auth/reset-password; returns success/error |
+| `refreshPendingCount(): Promise<void>` | Re-reads syncQueue.count() into pendingSyncCount |
 | `setCurrentWorkspace(workspace): Promise<void>` | Switches workspace; fetches lists + templates; auto-selects first active list |
 | `createWorkspace(name): Promise<Workspace>` | POST /workspaces; calls fetchWorkspaces() |
 | `joinWorkspace(inviteCode): Promise<Workspace>` | POST /workspaces/join; calls fetchWorkspaces() |

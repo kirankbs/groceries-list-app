@@ -20,6 +20,8 @@ Version string in UI: v2.4.0.
 ├── backend/
 │   ├── server.py              # Entire backend: models, helpers, all route handlers
 │   ├── requirements.txt       # Python deps: fastapi, motor, bcrypt, anthropic, pydantic, requests, python-dotenv
+│   ├── tests/
+│   │   └── test_categories.py # Pytest unit tests for category CRUD (requires running backend + MongoDB)
 │   └── .env                   # MONGO_URL, DB_NAME, ANTHROPIC_API_KEY, RESEND_API_KEY, RESEND_FROM, ALLOWED_ORIGINS
 ├── frontend/
 │   ├── app/
@@ -45,10 +47,15 @@ Version string in UI: v2.4.0.
 │   ├── hooks/
 │   │   └── useNetworkStatus.ts # NetInfo wrapper — isOnline, wasOffline
 │   ├── __tests__/             # Jest unit tests: offlineCache, syncQueue, useNetworkStatus (28 tests)
+│   ├── eas.json               # EAS Build profiles: development, preview, production
+│   ├── app.json               # Expo config: name "Korbly", slug "korbly", bundle "com.kirankbs.korbly"
 │   └── .env                   # EXPO_PUBLIC_BACKEND_URL
 ├── backend_test.py            # Integration test suite (root level); requires running backend + MongoDB
 ├── test.sh                    # Run all test layers in sequence
 ├── maestro/flows/             # E2E Maestro flows (login, add item, offline check, reconnect sync)
+├── docs/
+│   ├── SPEC.md                # Spec index — master table of contents
+│   └── spec/                  # 14 spec files: overview, auth, api, data-models, etc.
 └── .github/workflows/
     └── ci.yml                 # GitHub Actions: frontend Jest + backend integration on every PR
 ```

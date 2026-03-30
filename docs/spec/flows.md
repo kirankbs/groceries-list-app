@@ -28,10 +28,12 @@
 3. POST /api/items → optimistic append; `update_list_status` triggers
 
 **5. Check Off Item**
-1. Tap checkbox → optimistic UI update
-2. PUT /api/items/{id} `{checked: true}` → backend calls `update_list_status`
-3. All checked → list becomes `completed`
-4. On failure → revert optimistic update
+1. Tap checkbox → optimistic UI update (immediate state flip)
+2. If offline: enqueue to `syncQueue`, increment `pendingSyncCount`, return
+3. If online: PUT /api/items/{id} `{checked: true}` → backend calls `update_list_status`
+4. All checked → list becomes `completed`
+5. On server error → revert optimistic update
+6. On unexpected network error (online but request fails) → also enqueue to `syncQueue`
 
 **6. Switch Household**
 1. PantryScreen header tap → HouseholdSwitcherModal
