@@ -409,3 +409,36 @@ Predefined card styles:
 - Expired: "Reset code has expired. Please request a new one." + link
 
 **Success:** green banner + auto-redirect to Login after 2s
+
+---
+
+## Stitch Design vs Implementation — Gap Analysis
+
+### Structural / Feature Gaps
+
+| # | Stitch Design | Current Implementation | Severity |
+|---|---|---|---|
+| 1 | 4th bottom tab is **"Recipes"** (book icon) | 3rd tab is "Categories"; no Recipes feature exists | Major — entire feature missing |
+| 2 | **Item prices shown inline** on item rows ($4.99, $3.99) | Prices only visible after receipt scan confirmation | Fixed — now shows price badge when `item.price` exists |
+| 3 | **"See All" link** at bottom of each category section | Not implemented — all items shown inline | Minor — design aspirational |
+| 4 | **Category item counts** ("11 ITEMS", "4 ITEMS" per card) | Fixed — now shows item count below category name |
+| 5 | Settings: **"Premium Member"** badge, search icon, "Pantry Synchronization" toggle, "Dietary Labels", "Language" | None exist — no backend support for premium tiers, dietary labels, i18n | Major — requires backend features |
+| 6 | Member role badges: **"Admin"** + **"Full Access"** | Fixed — updated from "OWNER"/"MEMBER" |
+| 7 | Category form is **full-screen** with back arrow | Bottom-sheet modal — intentional mobile-first choice | Minor |
+| 8 | Google Sign-In button | Shown in Stitch but not wired — email/password only | Stub |
+| 9 | QR code for invite / Scan QR | Placeholder icon shown; no QR backend | Stub |
+| 10 | "Manage Permissions" link | Visible link, no backend | Stub |
+| 11 | Notifications / Privacy rows | Stub rows — taps do nothing | Stub |
+| 12 | Theme color mode persistence | `setColorMode` in-memory only; resets on restart | Known limitation |
+
+### Design System Compliance
+
+| # | Stitch Rule | Status |
+|---|---|---|
+| 1 | **"No-Line" rule** — 1px borders prohibited, use tonal shifts | Fixed — removed borders from tab bar, list cards, modal rows; using bg tonal separation |
+| 2 | **"Haptic Slide"** — checked items slide to bottom at 60% opacity, lighter weight | Fixed — checked items sorted to section bottom with reduced opacity |
+| 3 | **Glassmorphism** — 80% opacity, 20px backdrop blur | Not implemented — React Native requires expo-blur; deferred |
+| 4 | **Checkbox animation** — 1.1x scale pop on check | Fixed — Animated scale pop added to checkbox toggle |
+| 5 | **Shadow spec** — ambient 32px blur, 6% opacity | Fixed — FAB and auth card shadows adjusted |
+| 6 | **Category chips subtle-fill** — 12% opacity bg, full-strength text | Fixed — selected chips use `categoryColor + '20'` bg with category color text |
+| 7 | Settings footer tagline "Made with locally sourced ingredients." | Fixed — added to footer |

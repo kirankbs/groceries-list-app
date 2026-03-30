@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
   Platform, StatusBar, Alert,
@@ -8,16 +8,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../components/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { EXPO_PUBLIC_BACKEND_URL } from '../../components/constants';
-import type { FontMap, Category } from '../../components/types';
+import type { FontMap, Category, GroceryItem } from '../../components/types';
 import CategoryModal from '../../components/modals/CategoryModal';
 
 type Props = {
   font: FontMap;
   categories: Category[];
   fetchCategories: () => void;
+  items: GroceryItem[];
 };
 
-export default function CategoriesScreen({ font, categories, fetchCategories }: Props) {
+export default function CategoriesScreen({ font, categories, fetchCategories, items }: Props) {
   const { theme } = useTheme();
   const { sessionToken, currentWorkspace } = useAuth();
   const insets = useSafeAreaInsets();
@@ -28,6 +29,15 @@ export default function CategoriesScreen({ font, categories, fetchCategories }: 
 
   const [showForm, setShowForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+
+  const itemCountByCategory = useMemo(() => {
+    const counts: Record<string, number> = {};
+    items.forEach(item => {
+      const cat = item.category || 'Other';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  }, [items]);
 
   const handleDelete = (cat: Category) => {
     Alert.alert(
@@ -80,9 +90,9 @@ export default function CategoriesScreen({ font, categories, fetchCategories }: 
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 16, fontFamily: font.bodyMedium, color: theme.text }}>{cat.name}</Text>
-              {cat.name === 'Other' && (
-                <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>DEFAULT</Text>
-              )}
+              <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>
+                {cat.name === 'Other' ? 'DEFAULT' : `${itemCountByCategory[cat.name] || 0} ITEMS`}
+              </Text>
             </View>
             {cat.name !== 'Other' && (
               <TouchableOpacity

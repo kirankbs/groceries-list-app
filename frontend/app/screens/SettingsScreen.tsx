@@ -72,7 +72,7 @@ export default function SettingsScreen({ font, onOpenHouseholdDetails }: Props) 
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Household Settings</Text>
           <Ionicons name="chevron-forward" size={18} color={theme.outline} />
         </TouchableOpacity>
-        <View style={[st.divider, { backgroundColor: theme.surfaceContainer }]} />
+        <View style={{ height: 2 }} />
         <TouchableOpacity style={st.menuRow} onPress={onOpenHouseholdDetails}>
           <View style={[st.menuIcon, { backgroundColor: '#3b82f6' + '18' }]}><Ionicons name="people-outline" size={18} color="#3b82f6" /></View>
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Manage Members</Text>
@@ -95,7 +95,7 @@ export default function SettingsScreen({ font, onOpenHouseholdDetails }: Props) 
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Notifications</Text>
           <Ionicons name="chevron-forward" size={18} color={theme.outline} />
         </TouchableOpacity>
-        <View style={[st.divider, { backgroundColor: theme.surfaceContainer }]} />
+        <View style={{ height: 2 }} />
         <TouchableOpacity style={st.menuRow}>
           <View style={[st.menuIcon, { backgroundColor: '#6b7280' + '18' }]}><Ionicons name="shield-outline" size={18} color="#6b7280" /></View>
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Privacy & Security</Text>
@@ -113,7 +113,7 @@ export default function SettingsScreen({ font, onOpenHouseholdDetails }: Props) 
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Help & Support</Text>
           <Ionicons name="open-outline" size={16} color={theme.outline} />
         </TouchableOpacity>
-        <View style={[st.divider, { backgroundColor: theme.surfaceContainer }]} />
+        <View style={{ height: 2 }} />
         <TouchableOpacity style={st.menuRow} onPress={logout}>
           <View style={[st.menuIcon, { backgroundColor: PALETTE.error + '18' }]}><Ionicons name="log-out-outline" size={18} color={PALETTE.error} /></View>
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyBold, color: PALETTE.error }}>Log Out</Text>
@@ -138,5 +138,4 @@ const st = StyleSheet.create({
   menuGroup: { marginHorizontal: 16, borderRadius: 16, overflow: 'hidden' },
   menuRow: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   menuIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  divider: { height: StyleSheet.hairlineWidth, marginLeft: 62 },
 });
