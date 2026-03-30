@@ -52,8 +52,19 @@
 | `darkOnSurfaceVariant` | `#c1c9bd` | Secondary text (dark) |
 | `darkOutline` | `#8b9389` | Borders (dark) |
 | `darkOutlineVariant` | `#3d4a3d` | Subtle borders (dark) |
-| `darkPrimary` | `#5cfd80` | Primary in dark mode (bright green) |
-| `darkPrimaryContainer` | `#004d1c` | Container in dark mode |
+
+## Legacy Aliases (referenced by modals)
+
+| Token | Value | Notes |
+|---|---|---|
+| `rust` | `#ba1a1a` | Same as `error` |
+| `sage` | `#006a28` | Same as `primary` |
+| `sageLight` | `#e6f4ea` | Light sage tint |
+| `sand` | `#9ca3af` | Muted gray |
+| `cream` | `#fffbf7` | Warm white |
+| `clay` | `#92400e` | Dark amber |
+| `terracotta` | `#f97316` | Orange accent |
+| `terracottaLight` | `#fff7ed` | Light orange tint |
 
 ## Theme Object (light vs dark)
 
@@ -88,6 +99,8 @@
 
 ## CURRENCY_SYMBOLS
 `EUR→€ USD→$ GBP→£ CHF→Fr. AUD→A$ CAD→C$ INR→₹ JPY→¥ CNY→¥ KRW→₩`
+
+**Known mismatch:** Backend `PUT /api/workspaces/{id}/currency` only accepts `EUR USD GBP CHF AUD CAD` (6 currencies). The frontend constant includes 4 additional symbols (INR, JPY, CNY, KRW) that the backend rejects.
 
 ## Global Interactive States
 - Hover: background color change or slight opacity increase

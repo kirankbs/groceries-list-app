@@ -55,7 +55,10 @@ All endpoints prefixed with `/api`. Auth = Bearer token required unless noted.
 | PUT | `/api/categories/{category_id}` | Yes | `{name?, color?, icon?}` | Updated `Category`; if name changed → bulk updates all items in workspace |
 | DELETE | `/api/categories/{category_id}` | Yes | — | `{message}`; moves all items with this category → `"Other"` |
 
-**Note:** `CategoryModal.tsx` uses incorrect URL pattern (`/api/workspaces/{workspace_id}/categories/{category_id}`) for PUT/DELETE; correct backend routes are `/api/categories/{category_id}`.
+**Known bug:** `CategoryModal.tsx` uses incorrect URL patterns:
+- **POST** (create): uses `/api/workspaces/{workspace_id}/categories` — should be `/api/categories` with `workspace_id` in request body
+- **PUT** (edit): uses `/api/workspaces/{workspace_id}/categories/{category_id}` — should be `/api/categories/{category_id}`
+- **DELETE** (in `CategoriesScreen.tsx`): correctly uses `/api/categories/{category_id}`
 
 ## Receipts
 

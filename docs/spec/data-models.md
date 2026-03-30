@@ -108,3 +108,13 @@ API responses augment with: `total_items`, `checked_items` (via aggregation). Te
 | `raw_extracted_items` | list | excluded from GET responses (replaced with `raw_items_count`) |
 | `matched_items` | list | `[{item_id, item_name, matched_receipt_line, price, confidence}]` |
 | `error_message` | str\|null | set on failure |
+
+---
+
+## Known Issues & Notes
+
+- **`grocery_items.id` naming inconsistency:** All other collections use `{model}_id` (e.g., `user_id`, `workspace_id`, `list_id`), but grocery items use bare `id`. This is reflected in both backend Pydantic models and frontend TypeScript types.
+- **Currency mismatch:** `workspaces.currency` accepts only 6 values (`EUR USD GBP CHF AUD CAD`) on the backend, but the frontend `CURRENCY_SYMBOLS` constant defines 10 (adds `INR JPY CNY KRW`).
+- **No pagination:** No endpoints implement pagination, cursor, or limit parameters. Response sizes are unbounded.
+- **No explicit indexes documented:** Beyond `users.email` (unique) and `password_reset_codes.expires_at` (TTL), no indexes are defined for high-traffic query paths (`grocery_items` by `list_id`, `categories` by `workspace_id`, etc.).
+- **`added_by` not in frontend type:** The `grocery_items.added_by` field exists in the backend model but is omitted from the frontend `GroceryItem` TypeScript type — the UI does not display item attribution.

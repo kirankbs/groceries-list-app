@@ -13,7 +13,7 @@
 | [spec/overview.md](spec/overview.md) | Project overview, file map, key terminology, tech stack |
 | [spec/environment.md](spec/environment.md) | All environment variables (backend + frontend) |
 | [spec/auth.md](spec/auth.md) | Auth system, forgot-password OTP flow, session tokens, `require_auth` dependency |
-| [spec/data-models.md](spec/data-models.md) | All 6 MongoDB collections with field definitions and indexes |
+| [spec/data-models.md](spec/data-models.md) | All 8 MongoDB collections with field definitions, indexes, and known issues |
 | [spec/api.md](spec/api.md) | Full REST API reference — every endpoint, request/response shape |
 | [spec/business-logic.md](spec/business-logic.md) | `update_list_status`, categories, workspace creation, OTP rules, receipt OCR |
 | [spec/state.md](spec/state.md) | AuthContext (all state fields + methods) + ThemeContext |
