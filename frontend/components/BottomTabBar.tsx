@@ -29,7 +29,6 @@ export default function BottomTabBar({ activeTab, onTabPress }: Props) {
       {
         backgroundColor: theme.surface,
         paddingBottom: Math.max(insets.bottom, 8),
-        borderTopColor: theme.outlineVariant,
       }
     ]}>
       {TABS.map(tab => {
@@ -64,7 +63,6 @@ export default function BottomTabBar({ activeTab, onTabPress }: Props) {
 const st = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    borderTopWidth: StyleSheet.hairlineWidth,
   },
   tab: {
     flex: 1,

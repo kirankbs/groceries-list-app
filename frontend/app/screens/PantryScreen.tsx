@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, SectionList,
-  Platform, StatusBar, ActivityIndicator,
+  Platform, StatusBar, ActivityIndicator, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../components/ThemeContext';
@@ -100,9 +100,11 @@ export default function PantryScreen({
 
     return Array.from(buckets.entries()).map(([catName, catItems]) => {
       const catInfo = catMap.get(catName);
+      // Haptic slide: unchecked items first, checked items sink to bottom
+      const sorted = [...catItems].sort((a, b) => (a.checked === b.checked ? 0 : a.checked ? 1 : -1));
       return {
         title: catName,
-        data: catItems,
+        data: sorted,
         color: catInfo?.color ?? '#72796f',
         icon: catInfo?.icon ?? 'grid-outline',
       };
@@ -175,7 +177,16 @@ export default function PantryScreen({
     [lists]
   );
 
-  const renderItem = ({ item }: { item: GroceryItem }) => (
+  const animateCheckbox = useCallback((scaleRef: Animated.Value) => {
+    Animated.sequence([
+      Animated.timing(scaleRef, { toValue: 1.1, duration: 100, useNativeDriver: true }),
+      Animated.timing(scaleRef, { toValue: 1.0, duration: 100, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const renderItem = ({ item }: { item: GroceryItem }) => {
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+    return (
     <View style={{
       flexDirection: 'row',
       alignItems: 'center',
@@ -188,15 +199,17 @@ export default function PantryScreen({
       gap: 12,
     }}>
       <TouchableOpacity
-        style={{
+        onPress={() => { animateCheckbox(scaleAnim); toggleItem(item); }}
+      >
+        <Animated.View style={{
           width: 24, height: 24, borderRadius: 7, borderWidth: 2,
           borderColor: item.checked ? theme.primary : theme.outline,
           backgroundColor: item.checked ? theme.primary : 'transparent',
           justifyContent: 'center', alignItems: 'center',
-        }}
-        onPress={() => toggleItem(item)}
-      >
-        {item.checked && <Ionicons name="checkmark" size={14} color="#fff" />}
+          transform: [{ scale: scaleAnim }],
+        }}>
+          {item.checked && <Ionicons name="checkmark" size={14} color="#fff" />}
+        </Animated.View>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -205,9 +218,9 @@ export default function PantryScreen({
       >
         <Text style={{
           fontSize: 15,
-          fontFamily: font.bodyMedium,
+          fontFamily: item.checked ? font.body : font.bodyMedium,
           color: item.checked ? theme.textSecondary : theme.text,
-          ...(item.checked ? { textDecorationLine: 'line-through' as const, opacity: 0.6 } : {}),
+          opacity: item.checked ? 0.6 : 1,
         }}>
           {item.name}
         </Text>
@@ -230,6 +243,23 @@ export default function PantryScreen({
         </View>
       )}
 
+      {item.price != null && item.price > 0 && (
+        <View style={{
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          borderRadius: 20,
+          backgroundColor: item.checked ? theme.outline + '15' : theme.primary + '15',
+        }}>
+          <Text style={{
+            fontSize: 12,
+            fontFamily: font.bodySemiBold,
+            color: item.checked ? theme.outline : theme.primary,
+          }}>
+            ${item.price.toFixed(2)}
+          </Text>
+        </View>
+      )}
+
       <TouchableOpacity
         style={{ padding: 4 }}
         onPress={() => { setItemToDelete(item); setShowDeleteItem(true); }}
@@ -237,7 +267,8 @@ export default function PantryScreen({
         <Ionicons name="trash-outline" size={18} color={theme.outline} />
       </TouchableOpacity>
     </View>
-  );
+    );
+  };
 
   const renderSectionHeader = ({ section }: { section: typeof groupedSections[0] }) => (
     <View style={{
@@ -481,11 +512,11 @@ export default function PantryScreen({
             width: 60, height: 60, borderRadius: 18,
             backgroundColor: theme.primary,
             justifyContent: 'center', alignItems: 'center',
-            elevation: 8,
+            elevation: 6,
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.25,
-            shadowRadius: 12,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.06,
+            shadowRadius: 32,
           }}
           onPress={() => setShowAddItem(true)}
         >

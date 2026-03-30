@@ -233,7 +233,7 @@ export default function GroceryTodo() {
     const renderForgotPasswordCard = () => {
       if (forgotStep === 'email') {
         return (
-          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, elevation: 2 }}>
+          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 32, elevation: 2 }}>
             <TouchableOpacity onPress={handleBackToLogin} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
               <Ionicons name="arrow-back" size={20} color="#006a28" />
               <Text style={{ color: '#006a28', fontSize: 14, fontFamily: font.bodySemiBold, marginLeft: 4 }}>Back</Text>
@@ -267,7 +267,7 @@ export default function GroceryTodo() {
 
       if (forgotStep === 'code') {
         return (
-          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, elevation: 2 }}>
+          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 32, elevation: 2 }}>
             <TouchableOpacity onPress={() => setForgotStep('email')} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
               <Ionicons name="arrow-back" size={20} color="#006a28" />
               <Text style={{ color: '#006a28', fontSize: 14, fontFamily: font.bodySemiBold, marginLeft: 4 }}>Back</Text>
@@ -315,7 +315,7 @@ export default function GroceryTodo() {
 
       if (forgotStep === 'success') {
         return (
-          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, elevation: 2, alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 32, elevation: 2, alignItems: 'center' }}>
             <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#d4edda', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
               <Ionicons name="checkmark-circle" size={32} color="#006a28" />
             </View>
@@ -386,7 +386,7 @@ export default function GroceryTodo() {
               </View>
 
               {/* Auth card */}
-              <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 16, elevation: 2 }}>
+              <View style={{ backgroundColor: '#ffffff', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 32, elevation: 2 }}>
                 <Text style={{ fontSize: 20, fontFamily: font.display, color: '#1a1c1a', textAlign: 'center', marginBottom: 4 }}>
                   {isRegisterMode ? 'Create Account' : 'Welcome Back'}
                 </Text>
@@ -535,7 +535,7 @@ export default function GroceryTodo() {
           />
         )}
         {activeTab === 'categories' && (
-          <CategoriesScreen font={font} categories={categories} fetchCategories={fetchCategories} />
+          <CategoriesScreen font={font} categories={categories} fetchCategories={fetchCategories} items={items} />
         )}
         {activeTab === 'settings' && (
           <SettingsScreen font={font} onOpenHouseholdDetails={() => setShowHouseholdDetailsFromSettings(true)} />
