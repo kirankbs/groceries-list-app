@@ -85,6 +85,7 @@ export default function GroceryTodo() {
   const [loading, setLoading] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFailedCount, setSyncFailedCount] = useState(0);
 
   const font: FontMap = useMemo(() => ({
     display: fontsLoaded ? 'PlusJakartaSans_700Bold' : undefined,
@@ -134,13 +135,19 @@ export default function GroceryTodo() {
   useEffect(() => { if (currentWorkspace) fetchCategories(); }, [currentWorkspace, fetchCategories]);
   useEffect(() => { if (currentList) fetchItems(); }, [currentList, fetchItems]);
 
+  // Clear any previous failure count when we go offline — next reconnect starts fresh.
+  useEffect(() => {
+    if (!isOnline) setSyncFailedCount(0);
+  }, [isOnline]);
+
   // When connectivity returns, flush queued mutations then re-confirm server state.
   // Flush runs unconditionally (not gated on currentList); fetchItems is gated.
   useEffect(() => {
     if (!wasOffline || !sessionToken) return;
     (async () => {
       setIsSyncing(true);
-      await syncQueue.flush(sessionToken);
+      const { failed } = await syncQueue.flush(sessionToken);
+      setSyncFailedCount(failed);
       await refreshPendingCount();
       if (currentList) await fetchItems();
       setIsSyncing(false);
@@ -467,6 +474,7 @@ export default function GroceryTodo() {
 
   const syncStatusLabel = (() => {
     if (isSyncing) return 'Syncing…';
+    if (syncFailedCount > 0) return `${syncFailedCount} item${syncFailedCount === 1 ? '' : 's'} failed to sync. Pull to retry.`;
     if (!isOnline) {
       const parts: string[] = ['Offline'];
       if (lastSynced) {
@@ -479,6 +487,18 @@ export default function GroceryTodo() {
     return null;
   })();
 
+  const syncBannerColor = (() => {
+    if (isSyncing) return '#1a6b3c';
+    if (syncFailedCount > 0) return '#ba1a1a';
+    return '#795c00';
+  })();
+
+  const syncBannerIcon = (() => {
+    if (isSyncing) return 'sync-outline';
+    if (syncFailedCount > 0) return 'alert-circle-outline';
+    return 'cloud-offline-outline';
+  })();
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <StatusBar
@@ -488,7 +508,7 @@ export default function GroceryTodo() {
       />
       {(syncStatusLabel) && (
         <View style={{
-          backgroundColor: isSyncing ? '#1a6b3c' : '#795c00',
+          backgroundColor: syncBannerColor,
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: 16,
@@ -498,7 +518,7 @@ export default function GroceryTodo() {
           zIndex: 100,
         }}>
           <Ionicons
-            name={isSyncing ? 'sync-outline' : 'cloud-offline-outline'}
+            name={syncBannerIcon}
             size={15}
             color="#fff"
           />

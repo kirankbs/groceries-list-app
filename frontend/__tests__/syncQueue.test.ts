@@ -118,6 +118,25 @@ describe('syncQueue.flush', () => {
     expect(await syncQueue.count()).toBe(1);
   });
 
+  it('partial failure: succeeded entries removed, failed entry stays in queue', async () => {
+    await syncQueue.enqueue('item-ok-1', true);
+    await syncQueue.enqueue('item-ok-2', false);
+    await syncQueue.enqueue('item-fail', true);
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, status: 200 })   // item-ok-1
+      .mockResolvedValueOnce({ ok: true, status: 200 })   // item-ok-2
+      .mockResolvedValueOnce({ ok: false, status: 500 }); // item-fail
+
+    const result = await syncQueue.flush('token-abc');
+
+    expect(result).toEqual({ succeeded: 2, failed: 1 });
+    // Only the failed entry should remain
+    expect(await syncQueue.count()).toBe(1);
+    const remaining = readRawQueue();
+    expect(remaining[0]).toMatchObject({ itemId: 'item-fail' });
+  });
+
   it('keeps entries in queue on network error', async () => {
     await syncQueue.enqueue('item-1', true);
     (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
