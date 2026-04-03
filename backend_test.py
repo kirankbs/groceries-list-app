@@ -899,6 +899,170 @@ class BackendTester:
         else:
             self.log_result("Forgot password (non-existent email)", False, f"Status: {response.status_code}")
 
+    async def test_logout(self):
+        """Test POST /api/auth/logout — verify session is invalidated"""
+        print("\n🔍 Testing POST /api/auth/logout...")
+
+        # Login a separate user so we don't break self.session_token
+        test_email = f"test_logout_{uuid.uuid4().hex[:8]}@example.com"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            reg = await client.post(
+                f"{BACKEND_URL}/auth/register",
+                json={"email": test_email, "password": "testpass123", "name": "Logout Test"}
+            )
+        if reg.status_code != 200:
+            self.log_result("POST /api/auth/logout", False, f"Setup failed: {reg.status_code}")
+            return False
+
+        logout_token = reg.json()["session_token"]
+        logout_user_id = reg.json()["user"]["user_id"]
+
+        # Verify token works before logout
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            pre = await client.get(
+                f"{BACKEND_URL}/auth/me",
+                headers={"Authorization": f"Bearer {logout_token}"}
+            )
+        if pre.status_code != 200:
+            self.log_result("POST /api/auth/logout", False, "Token didn't work before logout")
+            return False
+
+        # Logout
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{BACKEND_URL}/auth/logout",
+                headers={"Authorization": f"Bearer {logout_token}"}
+            )
+        if resp.status_code != 200:
+            self.log_result("POST /api/auth/logout", False, f"Logout returned {resp.status_code}")
+            return False
+
+        # Verify token no longer works
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            post = await client.get(
+                f"{BACKEND_URL}/auth/me",
+                headers={"Authorization": f"Bearer {logout_token}"}
+            )
+
+        if post.status_code == 401:
+            self.log_result("POST /api/auth/logout", True, "Session invalidated after logout")
+            # Cleanup: delete the test user directly
+            await self.db.users.delete_one({"user_id": logout_user_id})
+            return True
+        else:
+            self.log_result("POST /api/auth/logout", False, f"Token still works after logout: {post.status_code}")
+            await self.db.users.delete_one({"user_id": logout_user_id})
+            return False
+
+    async def test_update_shopping_list(self):
+        """Test PUT /api/lists/{id} — rename and status changes"""
+        print("\n🔍 Testing PUT /api/lists/{id}...")
+
+        # Create a list to update
+        response = await self.make_request("POST", "/lists", {
+            "name": "Update Test List",
+            "workspace_id": self.test_workspace_id
+        })
+        if not response or response.status_code != 200:
+            self.log_result("PUT /api/lists/{id}", False, "Failed to create test list")
+            return False
+
+        list_id = response.json()["list_id"]
+
+        # Test rename
+        response = await self.make_request("PUT", f"/lists/{list_id}", {"name": "Renamed List"})
+        if not response or response.status_code != 200:
+            self.log_result("PUT /api/lists/{id}", False, f"Rename failed: {response.status_code if response else 'No response'}")
+            return False
+
+        data = response.json()
+        if data.get("name") != "Renamed List":
+            self.log_result("PUT /api/lists/{id}", False, f"Name not updated: {data.get('name')}")
+            return False
+
+        # Test set completed
+        response = await self.make_request("PUT", f"/lists/{list_id}", {"status": "completed"})
+        if not response or response.status_code != 200:
+            self.log_result("PUT /api/lists/{id}", False, "Set completed failed")
+            return False
+
+        data = response.json()
+        if not data.get("completed_at"):
+            self.log_result("PUT /api/lists/{id}", False, "completed_at not set")
+            return False
+
+        # Test set back to active
+        response = await self.make_request("PUT", f"/lists/{list_id}", {"status": "active"})
+        if not response or response.status_code != 200:
+            self.log_result("PUT /api/lists/{id}", False, "Set active failed")
+            return False
+
+        data = response.json()
+        if data.get("completed_at") is not None:
+            self.log_result("PUT /api/lists/{id}", False, "completed_at not cleared")
+            return False
+
+        self.log_result("PUT /api/lists/{id}", True, "Rename, complete, and re-activate all work")
+        return True
+
+    async def test_delete_shopping_list(self):
+        """Test DELETE /api/lists/{id} — cascade delete of items"""
+        print("\n🔍 Testing DELETE /api/lists/{id}...")
+
+        # Create a list
+        response = await self.make_request("POST", "/lists", {
+            "name": "Delete Test List",
+            "workspace_id": self.test_workspace_id
+        })
+        if not response or response.status_code != 200:
+            self.log_result("DELETE /api/lists/{id}", False, "Failed to create test list")
+            return False
+
+        list_id = response.json()["list_id"]
+
+        # Add an item to it
+        response = await self.make_request("POST", "/items", {
+            "name": "Delete Test Item",
+            "list_id": list_id
+        })
+        if not response or response.status_code != 200:
+            self.log_result("DELETE /api/lists/{id}", False, "Failed to create test item")
+            return False
+
+        # Delete the list
+        response = await self.make_request("DELETE", f"/lists/{list_id}")
+        if not response or response.status_code != 200:
+            self.log_result("DELETE /api/lists/{id}", False, f"Delete returned {response.status_code if response else 'No response'}")
+            return False
+
+        # Verify items were cascade-deleted
+        items = await self.db.grocery_items.find({"list_id": list_id}).to_list(100)
+        if len(items) > 0:
+            self.log_result("DELETE /api/lists/{id}", False, f"Items not cascade-deleted: {len(items)} remain")
+            return False
+
+        self.log_result("DELETE /api/lists/{id}", True, "List and items cascade-deleted")
+        return True
+
+    async def test_get_invite_code(self):
+        """Test GET /api/workspaces/{id}/invite-code"""
+        print("\n🔍 Testing GET /api/workspaces/{id}/invite-code...")
+
+        response = await self.make_request("GET", f"/workspaces/{self.test_workspace_id}/invite-code")
+
+        if response and response.status_code == 200:
+            data = response.json()
+            if "invite_code" in data and isinstance(data["invite_code"], str) and len(data["invite_code"]) > 0:
+                self.log_result("GET /api/workspaces/{id}/invite-code", True, f"Got invite code: {data['invite_code']}")
+                return True
+            else:
+                self.log_result("GET /api/workspaces/{id}/invite-code", False, "Missing or empty invite_code")
+        else:
+            status = response.status_code if response else "No response"
+            self.log_result("GET /api/workspaces/{id}/invite-code", False, f"Status: {status}")
+
+        return False
+
     async def run_all_tests(self):
         """Run all backend API tests"""
         print("🚀 Starting Backend API Tests for Multi-Workspace Grocery Todo App")
@@ -918,6 +1082,8 @@ class BackendTester:
             await self.test_create_grocery_item()
             await self.test_update_grocery_item()
             await self.test_delete_grocery_item()
+            await self.test_update_shopping_list()
+            await self.test_delete_shopping_list()
             await self.test_get_workspace_categories()
             await self.test_create_category()
             await self.test_update_category()
@@ -927,9 +1093,11 @@ class BackendTester:
             await self.test_create_list_from_template()
             await self.test_update_workspace_currency()
             await self.test_regenerate_invite_code()
+            await self.test_get_invite_code()
             await self.test_leave_workspace()
             await self.test_forgot_password_nonexistent_email()
             await self.test_forgot_password_flow()
+            await self.test_logout()
             
         except Exception as e:
             print(f"❌ Test execution error: {str(e)}")
