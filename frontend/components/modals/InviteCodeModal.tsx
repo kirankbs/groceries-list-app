@@ -1,7 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
 import { useTheme } from '../ThemeContext';
 import { FontMap } from '../types';
@@ -19,8 +18,8 @@ export default function InviteCodeModal({ visible, font, inviteCode, onClose }: 
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={modalStyles.centeredOverlay}>
         <View style={[modalStyles.centeredContent, { backgroundColor: theme.surface }]}>
-          <View style={[modalStyles.centeredIcon, { backgroundColor: PALETTE.sage + '18' }]}>
-            <Ionicons name="share-social" size={36} color={PALETTE.sage} />
+          <View style={[modalStyles.centeredIcon, { backgroundColor: theme.primary + '18' }]}>
+            <Ionicons name="share-social" size={36} color={theme.primary} />
           </View>
           <Text style={[modalStyles.centeredTitle, { color: theme.text, fontFamily: font.serif }]}>Invite Code</Text>
           <Text style={[styles.codeDisplay, { color: theme.text, backgroundColor: theme.inputBg, fontFamily: font.serifMedium }]}>

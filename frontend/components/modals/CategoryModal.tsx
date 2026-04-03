@@ -103,7 +103,7 @@ export default function CategoryModal({
               onChangeText={t => { setName(t); setError(''); }}
               autoFocus={!category}
             />
-            {!!error && <Text style={[st.error, { fontFamily: font.body }]}>{error}</Text>}
+            {!!error && <Text style={[st.error, { fontFamily: font.body, color: theme.error }]}>{error}</Text>}
 
             {/* Color palette */}
             <View style={st.sectionHeader}>
@@ -177,7 +177,7 @@ const st = StyleSheet.create({
   label: { fontSize: 11, marginBottom: 10, marginTop: 16, letterSpacing: 0.8, textTransform: 'uppercase' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 10 },
   input: { paddingHorizontal: 16, paddingVertical: 14, borderRadius: 14, fontSize: 16, marginBottom: 4 },
-  error: { color: '#ba1a1a', fontSize: 13, marginBottom: 8 },
+  error: { fontSize: 13, marginBottom: 8 },
   paletteGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 14, borderRadius: 16, marginBottom: 4 },
   colorCircle: { width: 44, height: 44, borderRadius: 22 },
   colorSelected: { borderWidth: 3, borderColor: '#fff', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },

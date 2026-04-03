@@ -293,12 +293,12 @@ export default function ReceiptScanModal({
         </TouchableOpacity>
 
         {error && (
-          <View style={[styles.errorBox, { backgroundColor: PALETTE.rust + '15' }]}>
-            <Ionicons name="alert-circle" size={18} color={PALETTE.rust} />
+          <View style={[styles.errorBox, { backgroundColor: theme.error + '15' }]}>
+            <Ionicons name="alert-circle" size={18} color={theme.error} />
             <Text
               style={[
                 styles.errorText,
-                { color: PALETTE.rust, fontFamily: font.body },
+                { color: theme.error, fontFamily: font.body },
               ]}
             >
               {error}
@@ -498,12 +498,12 @@ export default function ReceiptScanModal({
           </View>
 
           {error && (
-            <View style={[styles.errorBox, { backgroundColor: PALETTE.rust + '15' }]}>
-              <Ionicons name="alert-circle" size={18} color={PALETTE.rust} />
+            <View style={[styles.errorBox, { backgroundColor: theme.error + '15' }]}>
+              <Ionicons name="alert-circle" size={18} color={theme.error} />
               <Text
                 style={[
                   styles.errorText,
-                  { color: PALETTE.rust, fontFamily: font.body },
+                  { color: theme.error, fontFamily: font.body },
                 ]}
               >
                 {error}
@@ -530,7 +530,7 @@ export default function ReceiptScanModal({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: PALETTE.sage }]}
+              style={[styles.confirmButton, { backgroundColor: theme.primary }]}
               onPress={confirmPrices}
               activeOpacity={0.7}
             >

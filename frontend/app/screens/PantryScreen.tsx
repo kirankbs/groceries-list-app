@@ -231,12 +231,12 @@ export default function PantryScreen({
           paddingHorizontal: 10,
           paddingVertical: 4,
           borderRadius: 20,
-          backgroundColor: item.checked ? theme.outline + '20' : '#ff9727' + '20',
+          backgroundColor: item.checked ? theme.outline + '20' : theme.tertiary + '20',
         }}>
           <Text style={{
             fontSize: 13,
             fontFamily: font.bodySemiBold,
-            color: item.checked ? theme.outline : '#ff9727',
+            color: item.checked ? theme.outline : theme.tertiary,
           }}>
             {item.quantity} {item.unit || 'pcs'}
           </Text>

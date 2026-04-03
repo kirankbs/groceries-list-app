@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { EXPO_PUBLIC_BACKEND_URL, PALETTE } from '../constants';
+import { EXPO_PUBLIC_BACKEND_URL } from '../constants';
 import { modalStyles } from '../sharedStyles';
 import { useTheme } from '../ThemeContext';
 import { FontMap, GroceryItem } from '../types';
@@ -43,8 +43,8 @@ export default function DeleteItemModal({
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={modalStyles.centeredOverlay}>
         <View style={[modalStyles.centeredContent, { backgroundColor: theme.surface }]}>
-          <View style={[modalStyles.centeredIcon, { backgroundColor: PALETTE.rust + '15' }]}>
-            <Ionicons name="trash" size={36} color={PALETTE.rust} />
+          <View style={[modalStyles.centeredIcon, { backgroundColor: theme.error + '15' }]}>
+            <Ionicons name="trash" size={36} color={theme.error} />
           </View>
           <Text style={[modalStyles.centeredTitle, { color: theme.text, fontFamily: font.serif }]}>Delete Item?</Text>
           <Text style={[modalStyles.centeredMsg, { color: theme.textSecondary, fontFamily: font.body }]}>
@@ -55,7 +55,7 @@ export default function DeleteItemModal({
               <Text style={{ color: theme.text, fontFamily: font.bodySemiBold, fontSize: 15 }}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[modalStyles.centeredBtn, { backgroundColor: PALETTE.rust }]}
+              style={[modalStyles.centeredBtn, { backgroundColor: theme.error }]}
               onPress={handleDelete}
               disabled={loading}
             >
