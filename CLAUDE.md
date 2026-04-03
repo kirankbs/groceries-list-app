@@ -154,3 +154,30 @@ Flows: login → add item → check item offline → reconnect sync.
 ### CI (GitHub Actions)
 Layers 1 and 2 run automatically on every PR to `main` via `.github/workflows/ci.yml`.
 MongoDB is provisioned as a service container — no manual setup needed in CI.
+
+## Agents
+
+A 6-agent virtual team is configured in `.claude/agents/`. Full usage guide: `.claude/AGENTS-GUIDE.md`.
+
+### The Team
+
+| Agent | Layer | Role |
+|-------|-------|------|
+| `feature-strategist` | Strategy | Roadmap, coverage analysis, session prioritization |
+| `ux-reviewer` | Strategy | Flow audits, modal choreography, dark mode parity |
+| `implementation-lead` | Build | Fullstack implementation (Expo RN + FastAPI + MongoDB) |
+| `security-auditor` | Quality | Auth, access control, IDOR, session tokens |
+| `spec-tracker` | Quality | Keeps `docs/spec/*.md` in sync with code |
+| `test-runner` | Quality | 3-layer testing, coverage audits, test writing |
+
+### Quick Start
+
+```
+/deep-work on <area>           # full autonomous session
+"what should we build next"    # feature-strategist
+"security audit"               # security-auditor
+"sync specs"                   # spec-tracker
+"run tests"                    # test-runner
+```
+
+See `.claude/AGENTS-GUIDE.md` for the complete trigger reference.
