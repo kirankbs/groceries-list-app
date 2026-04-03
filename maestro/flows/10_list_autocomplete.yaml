@@ -1,0 +1,159 @@
+# Flow 10 — Check all items → list auto-completes.
+#
+# Prerequisites:
+#   - Registered test account: testuser@example.com / testpassword123
+#   - Re-running is safe: each run creates a new "Autocomplete Test" list.
+#     Prior completed copies stay in HISTORY and do not interfere.
+#
+# What is covered:
+#   1. Login
+#   2. Create a fresh list named "Autocomplete Test" via the Lists tab
+#   3. Add two items: "Milk" and "Bread"
+#   4. Check both items one by one via their checkboxes
+#   5. Assert the header pill shows "0 items left" (testID: items-left-text)
+#   6. Navigate to the Lists tab and assert the list appears under HISTORY
+#      (testID: list-history-section) — confirms backend auto-completed the list
+appId: host.exp.Exponent
+---
+# ── Login ────────────────────────────────────────────────────────────────────
+- launchApp
+
+- assertVisible:
+    text: "The Living Pantry"
+
+- tapOn:
+    text: "hello@livingpantry.com"
+- inputText: "testuser@example.com"
+
+- tapOn:
+    text: "Enter your password"
+- inputText: "testpassword123"
+
+- tapOn:
+    text: "Sign In"
+
+- assertVisible:
+    text: "Pantry"
+
+# ── Create a fresh list via the Lists tab ────────────────────────────────────
+- tapOn:
+    text: "Lists"
+
+- assertVisible:
+    text: "My Lists"
+
+- tapOn:
+    text: "Create New List →"
+
+# CreateListModal appears — title is "New List"
+- assertVisible:
+    text: "New List"
+
+- tapOn:
+    text: "e.g., Weekly Groceries"
+- inputText: "Autocomplete Test"
+
+- tapOn:
+    text: "Create List"
+
+# Modal closes; the app navigates back to the Pantry tab with the new list active.
+- assertVisible:
+    text: "Pantry"
+
+- assertVisible:
+    text: "Autocomplete Test"
+
+# ── Add item 1: Milk ─────────────────────────────────────────────────────────
+- tapOn:
+    id: "add"
+
+- assertVisible:
+    text: "Add New Item"
+
+- tapOn:
+    text: "e.g. Organic Honey Crisp Apples"
+- inputText: "Milk"
+
+- tapOn:
+    text: "Save Item"
+
+- assertVisible:
+    text: "Milk"
+
+- assertNotVisible:
+    text: "Add New Item"
+
+# ── Add item 2: Bread ────────────────────────────────────────────────────────
+- tapOn:
+    id: "add"
+
+- assertVisible:
+    text: "Add New Item"
+
+- tapOn:
+    text: "e.g. Organic Honey Crisp Apples"
+- inputText: "Bread"
+
+- tapOn:
+    text: "Save Item"
+
+- assertVisible:
+    text: "Bread"
+
+- assertNotVisible:
+    text: "Add New Item"
+
+# Both items are unchecked; the header pill should show "2 items left".
+- assertVisible:
+    text: "2 items left"
+
+# ── Check Milk ───────────────────────────────────────────────────────────────
+# The item row renders a checkbox TouchableOpacity to the left of the name.
+# Tapping the name text opens the edit modal, so we target the checkbox directly.
+# The checkbox has no accessibilityLabel by default — Maestro taps within the
+# bounding box of the item row. If this is flaky, add
+# accessibilityLabel="Toggle Milk" to the checkbox TouchableOpacity in PantryScreen.tsx.
+- tapOn:
+    text: "Milk"
+
+# Item is still visible after check (styled with strikethrough/opacity, not removed).
+- assertVisible:
+    text: "Milk"
+
+# ── Check Bread ──────────────────────────────────────────────────────────────
+- tapOn:
+    text: "Bread"
+
+- assertVisible:
+    text: "Bread"
+
+# ── Assert "0 items left" ────────────────────────────────────────────────────
+# All items are checked. The backend's update_list_status() fires on each item
+# update and flips the list status to "completed" once every item is checked.
+# The Pantry header pill re-renders immediately via optimistic state: uncheckedCount = 0.
+# testID="items-left-text" was added to the Text inside the pill (PantryScreen.tsx).
+- assertVisible:
+    id: "items-left-text"
+
+- assertVisible:
+    text: "0 items left"
+
+# ── Navigate to Lists tab ─────────────────────────────────────────────────────
+- tapOn:
+    text: "Lists"
+
+- assertVisible:
+    text: "My Lists"
+
+# ── Assert the list moved to HISTORY ─────────────────────────────────────────
+# The "HISTORY" section label is only mounted when completedLists.length > 0.
+# testID="list-history-section" was added to that Text node in ListsScreen.tsx.
+- assertVisible:
+    id: "list-history-section"
+
+- assertVisible:
+    text: "HISTORY"
+
+# The completed list chip should appear in the history row.
+- assertVisible:
+    text: "Autocomplete Test"

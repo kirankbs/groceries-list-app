@@ -343,13 +343,14 @@ export default function PantryScreen({
 
         {currentList && (
           <TouchableOpacity
+            testID="items-left-btn"
             style={{
               paddingHorizontal: 12, paddingVertical: 6,
               borderRadius: 20, backgroundColor: theme.surfaceContainer,
             }}
             onPress={() => setShowLists(true)}
           >
-            <Text style={{ fontSize: 13, fontFamily: font.bodySemiBold, color: theme.primary }}>
+            <Text testID="items-left-text" style={{ fontSize: 13, fontFamily: font.bodySemiBold, color: theme.primary }}>
               {uncheckedCount} items left
             </Text>
           </TouchableOpacity>

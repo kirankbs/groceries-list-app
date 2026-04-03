@@ -123,7 +123,7 @@ export default function ListsScreen({
         {/* Completed / history */}
         {completedLists.length > 0 && (
           <>
-            <Text style={[styles.sectionLabel, { fontFamily: font.bodySemiBold, color: theme.textSecondary, marginTop: 28 }]}>
+            <Text testID="list-history-section" style={[styles.sectionLabel, { fontFamily: font.bodySemiBold, color: theme.textSecondary, marginTop: 28 }]}>
               HISTORY
             </Text>
             <ScrollView
