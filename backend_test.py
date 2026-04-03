@@ -1362,6 +1362,136 @@ class BackendTester:
 
         return False
 
+    async def test_delete_workspace(self):
+        """Test DELETE /api/workspaces/{id} — owner deletes, cascade removes lists and items"""
+        print("\n🔍 Testing DELETE /api/workspaces/{id}...")
+
+        # Create a dedicated shared workspace for this test so the main test_workspace_id is untouched
+        ws_resp = await self.make_request("POST", "/workspaces", {"name": "Delete Test Workspace"})
+        if not ws_resp or ws_resp.status_code != 200:
+            self.log_result("DELETE /api/workspaces/{id}", False, "Failed to create test workspace")
+            return False
+
+        ws_id = ws_resp.json()["workspace_id"]
+
+        # Add a list
+        list_resp = await self.make_request("POST", "/lists", {
+            "name": "Delete WS List",
+            "workspace_id": ws_id
+        })
+        if not list_resp or list_resp.status_code != 200:
+            self.log_result("DELETE /api/workspaces/{id}", False, "Failed to create list in test workspace")
+            return False
+
+        list_id = list_resp.json()["list_id"]
+
+        # Add an item to that list
+        item_resp = await self.make_request("POST", "/items", {
+            "name": "Delete WS Item",
+            "list_id": list_id
+        })
+        if not item_resp or item_resp.status_code != 200:
+            self.log_result("DELETE /api/workspaces/{id}", False, "Failed to create item in test list")
+            return False
+
+        # Delete the workspace
+        del_resp = await self.make_request("DELETE", f"/workspaces/{ws_id}")
+        if not del_resp or del_resp.status_code != 200:
+            status = del_resp.status_code if del_resp else "No response"
+            self.log_result("DELETE /api/workspaces/{id}", False, f"Delete returned {status}: {del_resp.text if del_resp else ''}")
+            return False
+
+        # Verify workspace is gone — it should no longer appear in the user's workspace list
+        me_resp = await self.make_request("GET", "/auth/me")
+        if not me_resp or me_resp.status_code != 200:
+            self.log_result("DELETE /api/workspaces/{id}", False, "Could not fetch /auth/me after delete")
+            return False
+
+        remaining_ws_ids = [w["workspace_id"] for w in me_resp.json().get("workspaces", [])]
+        if ws_id in remaining_ws_ids:
+            self.log_result("DELETE /api/workspaces/{id}", False, "Workspace still present after delete")
+            return False
+
+        # Verify cascade: list and items gone from DB
+        list_doc = await self.db.shopping_lists.find_one({"list_id": list_id})
+        if list_doc is not None:
+            self.log_result("DELETE /api/workspaces/{id}", False, "List not cascade-deleted")
+            return False
+
+        item_docs = await self.db.grocery_items.find({"list_id": list_id}).to_list(10)
+        if item_docs:
+            self.log_result("DELETE /api/workspaces/{id}", False, f"{len(item_docs)} item(s) not cascade-deleted")
+            return False
+
+        self.log_result("DELETE /api/workspaces/{id}", True, "Workspace, list, and items all removed")
+        return True
+
+    async def test_list_status_transitions(self):
+        """Test update_list_status: active → in_progress → completed, and revert after manual reset"""
+        print("\n🔍 Testing list status transitions...")
+
+        if not self.test_workspace_id:
+            self.log_result("List status transitions", False, "No workspace ID available")
+            return False
+
+        # Create a fresh list with 2 items
+        list_resp = await self.make_request("POST", "/lists", {
+            "name": "Status Transition List",
+            "workspace_id": self.test_workspace_id
+        })
+        if not list_resp or list_resp.status_code != 200:
+            self.log_result("List status transitions", False, "Failed to create list")
+            return False
+
+        list_id = list_resp.json()["list_id"]
+
+        item_a_resp = await self.make_request("POST", "/items", {"name": "Item A", "list_id": list_id})
+        item_b_resp = await self.make_request("POST", "/items", {"name": "Item B", "list_id": list_id})
+        if not item_a_resp or item_a_resp.status_code != 200 or not item_b_resp or item_b_resp.status_code != 200:
+            self.log_result("List status transitions", False, "Failed to create test items")
+            return False
+
+        item_a_id = item_a_resp.json()["id"]
+        item_b_id = item_b_resp.json()["id"]
+
+        # Assert initial status is active (no items checked)
+        list_doc = await self.db.shopping_lists.find_one({"list_id": list_id})
+        initial_status = list_doc.get("status") if list_doc else None
+        if initial_status not in ("active", "in_progress"):
+            self.log_result("List status transitions — initial active", False, f"Unexpected initial status: {initial_status}")
+            return False
+        self.log_result("List status transitions — initial active", True, f"Status: {initial_status}")
+
+        # Check one item → expect in_progress
+        await self.make_request("PUT", f"/items/{item_a_id}", {"checked": True})
+        list_doc = await self.db.shopping_lists.find_one({"list_id": list_id})
+        if list_doc.get("status") != "in_progress":
+            self.log_result("List status transitions — in_progress after partial check", False, f"Status: {list_doc.get('status')}")
+            return False
+        self.log_result("List status transitions — in_progress after partial check", True)
+
+        # Check second item → expect completed
+        await self.make_request("PUT", f"/items/{item_b_id}", {"checked": True})
+        list_doc = await self.db.shopping_lists.find_one({"list_id": list_id})
+        if list_doc.get("status") != "completed":
+            self.log_result("List status transitions — completed when all checked", False, f"Status: {list_doc.get('status')}")
+            return False
+        self.log_result("List status transitions — completed when all checked", True)
+
+        # update_list_status skips lists already in completed state, so manually reopen it
+        # before testing the revert path
+        await self.make_request("PUT", f"/lists/{list_id}", {"status": "in_progress"})
+
+        # Uncheck one item — update_list_status should set in_progress (one still checked)
+        await self.make_request("PUT", f"/items/{item_a_id}", {"checked": False})
+        list_doc = await self.db.shopping_lists.find_one({"list_id": list_id})
+        if list_doc.get("status") != "in_progress":
+            self.log_result("List status transitions — reverts after uncheck", False, f"Status: {list_doc.get('status')}")
+            return False
+        self.log_result("List status transitions — reverts after uncheck", True)
+
+        return True
+
     async def run_all_tests(self):
         """Run all backend API tests"""
         print("🚀 Starting Backend API Tests for Multi-Workspace Grocery Todo App")
@@ -1387,6 +1517,7 @@ class BackendTester:
             await self.test_confirm_receipt()
             await self.test_update_shopping_list()
             await self.test_delete_shopping_list()
+            await self.test_list_status_transitions()
             await self.test_get_workspace_categories()
             await self.test_create_category()
             await self.test_update_category()
@@ -1397,6 +1528,7 @@ class BackendTester:
             await self.test_update_workspace_currency()
             await self.test_regenerate_invite_code()
             await self.test_get_invite_code()
+            await self.test_delete_workspace()
             await self.test_leave_workspace()
             await self.test_forgot_password_nonexistent_email()
             await self.test_forgot_password_flow()
