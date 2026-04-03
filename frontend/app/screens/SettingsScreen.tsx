@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar, ScrollView } from 'react-native';
+import { Alert, View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../components/ThemeContext';
@@ -89,16 +89,14 @@ export default function SettingsScreen({ font, onOpenHouseholdDetails }: Props) 
         <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 }}>PREFERENCES</Text>
       </View>
       <View style={[st.menuGroup, { backgroundColor: theme.surface }]}>
-        <TouchableOpacity style={st.menuRow}>
+        <TouchableOpacity style={st.menuRow} onPress={() => Alert.alert('Coming Soon', 'Notification settings are on the way.')}>
           <View style={[st.menuIcon, { backgroundColor: '#f97316' + '18' }]}><Ionicons name="notifications-outline" size={18} color="#f97316" /></View>
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Notifications</Text>
-          <Ionicons name="chevron-forward" size={18} color={theme.outline} />
         </TouchableOpacity>
         <View style={{ height: 2 }} />
-        <TouchableOpacity style={st.menuRow}>
+        <TouchableOpacity style={st.menuRow} onPress={() => Alert.alert('Coming Soon', 'Privacy & Security settings are on the way.')}>
           <View style={[st.menuIcon, { backgroundColor: '#6b7280' + '18' }]}><Ionicons name="shield-outline" size={18} color="#6b7280" /></View>
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Privacy & Security</Text>
-          <Ionicons name="chevron-forward" size={18} color={theme.outline} />
         </TouchableOpacity>
       </View>
 
@@ -107,10 +105,9 @@ export default function SettingsScreen({ font, onOpenHouseholdDetails }: Props) 
         <Text style={{ fontSize: 11, fontFamily: font.bodySemiBold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 }}>SUPPORT</Text>
       </View>
       <View style={[st.menuGroup, { backgroundColor: theme.surface }]}>
-        <TouchableOpacity style={st.menuRow}>
+        <TouchableOpacity style={st.menuRow} onPress={() => Alert.alert('Coming Soon', 'Help & Support is on the way.')}>
           <View style={[st.menuIcon, { backgroundColor: '#8b5cf6' + '18' }]}><Ionicons name="help-circle-outline" size={18} color="#8b5cf6" /></View>
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Help & Support</Text>
-          <Ionicons name="open-outline" size={16} color={theme.outline} />
         </TouchableOpacity>
         <View style={{ height: 2 }} />
         <TouchableOpacity style={st.menuRow} onPress={logout}>
