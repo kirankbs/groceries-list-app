@@ -1,7 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
 import { useTheme } from '../ThemeContext';
 import type { FontMap } from '../types';
@@ -23,8 +22,8 @@ export default function DeleteHouseholdModal({
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={modalStyles.centeredOverlay}>
         <View style={[modalStyles.centeredContent, { backgroundColor: theme.surface }]}>
-          <View style={[modalStyles.centeredIcon, { backgroundColor: PALETTE.rust + '15' }]}>
-            <Ionicons name="trash" size={36} color={PALETTE.rust} />
+          <View style={[modalStyles.centeredIcon, { backgroundColor: theme.error + '15' }]}>
+            <Ionicons name="trash" size={36} color={theme.error} />
           </View>
           <Text style={[modalStyles.centeredTitle, { color: theme.text, fontFamily: font.serif }]}>
             Delete Household?
@@ -42,7 +41,7 @@ export default function DeleteHouseholdModal({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[modalStyles.centeredBtn, { backgroundColor: PALETTE.rust }]}
+              style={[modalStyles.centeredBtn, { backgroundColor: theme.error }]}
               onPress={onConfirm}
               disabled={loading}
             >

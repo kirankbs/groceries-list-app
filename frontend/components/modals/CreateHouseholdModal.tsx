@@ -3,7 +3,6 @@ import {
   Modal, View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
 import type { FontMap, Workspace } from '../types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -62,7 +61,7 @@ export default function CreateHouseholdModal({ visible, font, onClose, onCreated
 
           {/* Hero */}
           <View style={styles.heroSection}>
-            <View style={styles.heroIconCircle}>
+            <View style={[styles.heroIconCircle, { backgroundColor: theme.primary }]}>
               <Ionicons name="leaf" size={36} color="#fff" />
             </View>
             <Text style={[styles.heroHeading, { color: theme.text, fontFamily: font.display }]}>
@@ -89,7 +88,7 @@ export default function CreateHouseholdModal({ visible, font, onClose, onCreated
             autoFocus
           />
           {error ? (
-            <Text style={{ color: '#c0392b', fontFamily: font.body, fontSize: 13, marginTop: 6 }}>
+            <Text style={{ color: theme.error, fontFamily: font.body, fontSize: 13, marginTop: 6 }}>
               {error}
             </Text>
           ) : null}
@@ -136,7 +135,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: PALETTE.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,

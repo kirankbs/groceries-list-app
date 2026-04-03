@@ -3,7 +3,6 @@ import {
   Modal, View, Text, TouchableOpacity, ScrollView, Share, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
 import type { FontMap, Workspace } from '../types';
 import { useTheme } from '../ThemeContext';
@@ -78,7 +77,7 @@ export default function HouseholdDetailsModal({
 
           {/* Household header */}
           <View style={styles.householdHeader}>
-            <View style={styles.householdIconCircle}>
+            <View style={[styles.householdIconCircle, { backgroundColor: theme.primary }]}>
               <Ionicons name="home" size={32} color="#fff" />
             </View>
             <Text style={[styles.householdName, { color: theme.text, fontFamily: font.display }]} numberOfLines={2}>
@@ -89,9 +88,9 @@ export default function HouseholdDetailsModal({
                 Est. {estDate}
               </Text>
             )}
-            <View style={[styles.memberBadge, { backgroundColor: PALETTE.primary + '18' }]}>
-              <Ionicons name="people" size={13} color={PALETTE.primary} />
-              <Text style={[styles.memberBadgeText, { color: PALETTE.primary, fontFamily: font.bodySemiBold }]}>
+            <View style={[styles.memberBadge, { backgroundColor: theme.primary + '18' }]}>
+              <Ionicons name="people" size={13} color={theme.primary} />
+              <Text style={[styles.memberBadgeText, { color: theme.primary, fontFamily: font.bodySemiBold }]}>
                 {memberCount} {memberCount === 1 ? 'member' : 'members'}
               </Text>
             </View>
@@ -107,7 +106,7 @@ export default function HouseholdDetailsModal({
                 {displayCode}
               </Text>
               <TouchableOpacity
-                style={[styles.copyBtn, { backgroundColor: PALETTE.primary }]}
+                style={[styles.copyBtn, { backgroundColor: theme.primary }]}
                 onPress={handleCopyCode}
               >
                 <Ionicons name="share-social-outline" size={16} color="#fff" />
@@ -129,8 +128,8 @@ export default function HouseholdDetailsModal({
                 const memberIsOwner = m.user_id === household.owner_id;
                 return (
                   <View key={m.user_id} style={[styles.memberRow, { borderBottomColor: theme.outlineVariant }]}>
-                    <View style={[styles.memberAvatar, { backgroundColor: PALETTE.primary + '20' }]}>
-                      <Text style={[styles.memberAvatarText, { color: PALETTE.primary, fontFamily: font.bodyBold }]}>
+                    <View style={[styles.memberAvatar, { backgroundColor: theme.primary + '20' }]}>
+                      <Text style={[styles.memberAvatarText, { color: theme.primary, fontFamily: font.bodyBold }]}>
                         {initial}
                       </Text>
                     </View>
@@ -146,11 +145,11 @@ export default function HouseholdDetailsModal({
                     </View>
                     <View style={[
                       styles.roleBadge,
-                      { backgroundColor: memberIsOwner ? PALETTE.primary + '15' : theme.surfaceContainer },
+                      { backgroundColor: memberIsOwner ? theme.primary + '15' : theme.surfaceContainer },
                     ]}>
                       <Text style={[
                         styles.roleBadgeText,
-                        { color: memberIsOwner ? PALETTE.primary : theme.textSecondary, fontFamily: font.bodySemiBold },
+                        { color: memberIsOwner ? theme.primary : theme.textSecondary, fontFamily: font.bodySemiBold },
                       ]}>
                         {memberIsOwner ? 'Owner' : 'Member'}
                       </Text>
@@ -166,11 +165,11 @@ export default function HouseholdDetailsModal({
             {/* Leave household (non-owners only) */}
             {!isOwner && (
               <TouchableOpacity
-                style={[styles.leaveBtn, { borderColor: PALETTE.error }]}
+                style={[styles.leaveBtn, { borderColor: theme.error }]}
                 onPress={onLeave}
               >
-                <Ionicons name="exit-outline" size={18} color={PALETTE.error} />
-                <Text style={[styles.leaveBtnText, { color: PALETTE.error, fontFamily: font.bodySemiBold }]}>
+                <Ionicons name="exit-outline" size={18} color={theme.error} />
+                <Text style={[styles.leaveBtnText, { color: theme.error, fontFamily: font.bodySemiBold }]}>
                   Leave Household
                 </Text>
               </TouchableOpacity>
@@ -179,7 +178,7 @@ export default function HouseholdDetailsModal({
             {/* Delete household (owner only) */}
             {isOwner && (
               <TouchableOpacity
-                style={[styles.deleteBtn, { backgroundColor: PALETTE.error }]}
+                style={[styles.deleteBtn, { backgroundColor: theme.error }]}
                 onPress={onDelete}
               >
                 <Ionicons name="trash-outline" size={18} color="#fff" />
@@ -224,7 +223,6 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: PALETTE.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 14,

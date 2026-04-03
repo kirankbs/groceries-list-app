@@ -4,7 +4,7 @@ import {
   ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { EXPO_PUBLIC_BACKEND_URL, ITEM_UNITS, PALETTE } from '../constants';
+import { EXPO_PUBLIC_BACKEND_URL, ITEM_UNITS } from '../constants';
 import { useTheme } from '../ThemeContext';
 import type { FontMap, Category, GroceryItem } from '../types';
 
@@ -179,8 +179,8 @@ export default function EditItemModal({
             style={st.deleteRow}
             onPress={() => { if (item) { onClose(); onDeleteRequest(item); } }}
           >
-            <Ionicons name="trash-outline" size={18} color={PALETTE.error} />
-            <Text style={[st.deleteText, { fontFamily: font.bodyMedium }]}>Delete Item</Text>
+            <Ionicons name="trash-outline" size={18} color={theme.error} />
+            <Text style={[st.deleteText, { fontFamily: font.bodyMedium, color: theme.error }]}>Delete Item</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -209,5 +209,5 @@ const st = StyleSheet.create({
   saveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 14 },
   saveBtnText: { color: '#fff', fontSize: 16 },
   deleteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8 },
-  deleteText: { color: '#ba1a1a', fontSize: 14 },
+  deleteText: { fontSize: 14 },
 });

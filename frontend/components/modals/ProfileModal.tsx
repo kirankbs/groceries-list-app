@@ -73,28 +73,28 @@ export default function ProfileModal({
                     {m.name}
                   </Text>
                   {m.user_id === currentWorkspace.owner_id && (
-                    <View style={styles.ownerBadge}>
-                      <Text style={[styles.ownerBadgeText, { fontFamily: font.bodySemiBold }]}>Owner</Text>
+                    <View style={[styles.ownerBadge, { backgroundColor: theme.primary + '20' }]}>
+                      <Text style={[styles.ownerBadgeText, { fontFamily: font.bodySemiBold, color: theme.primary }]}>Owner</Text>
                     </View>
                   )}
                 </View>
               ))}
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                <TouchableOpacity style={[styles.cardBtn, { borderColor: PALETTE.sage }]} onPress={onInvite}>
-                  <Ionicons name="share-outline" size={18} color={PALETTE.sage} />
-                  <Text style={{ color: PALETTE.sage, fontFamily: font.bodySemiBold }}>Invite</Text>
+                <TouchableOpacity style={[styles.cardBtn, { borderColor: theme.primary }]} onPress={onInvite}>
+                  <Ionicons name="share-outline" size={18} color={theme.primary} />
+                  <Text style={{ color: theme.primary, fontFamily: font.bodySemiBold }}>Invite</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.cardBtn, { borderColor: PALETTE.rust }]} onPress={onLeave}>
-                  <Ionicons name="exit-outline" size={18} color={PALETTE.rust} />
-                  <Text style={{ color: PALETTE.rust, fontFamily: font.bodySemiBold }}>Leave</Text>
+                <TouchableOpacity style={[styles.cardBtn, { borderColor: theme.error }]} onPress={onLeave}>
+                  <Ionicons name="exit-outline" size={18} color={theme.error} />
+                  <Text style={{ color: theme.error, fontFamily: font.bodySemiBold }}>Leave</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
 
           <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
-            <Ionicons name="log-out-outline" size={18} color={PALETTE.rust} />
-            <Text style={{ color: PALETTE.rust, fontFamily: font.bodySemiBold }}>Sign Out</Text>
+            <Ionicons name="log-out-outline" size={18} color={theme.error} />
+            <Text style={{ color: theme.error, fontFamily: font.bodySemiBold }}>Sign Out</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -111,8 +111,8 @@ const styles = StyleSheet.create({
   memberAvatar: { width: 32, height: 32, borderRadius: 16 },
   memberAvatarPlaceholder: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   memberName: { flex: 1, fontSize: 14 },
-  ownerBadge: { backgroundColor: PALETTE.sage + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  ownerBadgeText: { fontSize: 11, color: PALETTE.sage },
+  ownerBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  ownerBadgeText: { fontSize: 11 },
   cardBtn: {
     flex: 1,
     flexDirection: 'row',

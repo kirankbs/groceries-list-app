@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../components/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { PALETTE } from '../../components/constants';
 import type { FontMap } from '../../components/types';
 
 type Props = { font: FontMap; onOpenHouseholdDetails: () => void };
@@ -68,7 +67,7 @@ export default function SettingsScreen({ font, onOpenHouseholdDetails }: Props) 
       </View>
       <View style={[st.menuGroup, { backgroundColor: theme.surface }]}>
         <TouchableOpacity style={st.menuRow} onPress={onOpenHouseholdDetails}>
-          <View style={[st.menuIcon, { backgroundColor: PALETTE.primary + '18' }]}><Ionicons name="home-outline" size={18} color={PALETTE.primary} /></View>
+          <View style={[st.menuIcon, { backgroundColor: theme.primary + '18' }]}><Ionicons name="home-outline" size={18} color={theme.primary} /></View>
           <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyMedium, color: theme.text }}>Household Settings</Text>
           <Ionicons name="chevron-forward" size={18} color={theme.outline} />
         </TouchableOpacity>
@@ -115,8 +114,8 @@ export default function SettingsScreen({ font, onOpenHouseholdDetails }: Props) 
         </TouchableOpacity>
         <View style={{ height: 2 }} />
         <TouchableOpacity style={st.menuRow} onPress={logout}>
-          <View style={[st.menuIcon, { backgroundColor: PALETTE.error + '18' }]}><Ionicons name="log-out-outline" size={18} color={PALETTE.error} /></View>
-          <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyBold, color: PALETTE.error }}>Log Out</Text>
+          <View style={[st.menuIcon, { backgroundColor: theme.error + '18' }]}><Ionicons name="log-out-outline" size={18} color={theme.error} /></View>
+          <Text style={{ flex: 1, fontSize: 15, fontFamily: font.bodyBold, color: theme.error }}>Log Out</Text>
         </TouchableOpacity>
       </View>
 

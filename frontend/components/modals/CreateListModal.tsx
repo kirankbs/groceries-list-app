@@ -4,7 +4,6 @@ import {
   ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PALETTE } from '../constants';
 import { modalStyles } from '../sharedStyles';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../ThemeContext';
@@ -83,7 +82,7 @@ export default function CreateListModal({
           <TextInput
             style={[modalStyles.input, { backgroundColor: theme.inputBg, color: theme.text, fontFamily: font.body }]}
             placeholder="e.g., Weekly Groceries"
-            placeholderTextColor={PALETTE.sand}
+            placeholderTextColor={theme.outline}
             value={name}
             onChangeText={setName}
           />
@@ -97,20 +96,20 @@ export default function CreateListModal({
                 key={opt.mode}
                 style={[
                   styles.modeOption,
-                  { borderColor: mode === opt.mode ? PALETTE.terracotta : theme.border },
-                  mode === opt.mode && { backgroundColor: PALETTE.terracotta },
+                  { borderColor: mode === opt.mode ? theme.tertiary : theme.border },
+                  mode === opt.mode && { backgroundColor: theme.tertiary },
                 ]}
                 onPress={() => setMode(opt.mode)}
               >
                 <Ionicons
                   name={opt.icon as any}
                   size={22}
-                  color={mode === opt.mode ? '#fff' : PALETTE.terracotta}
+                  color={mode === opt.mode ? '#fff' : theme.tertiary}
                 />
                 <Text
                   style={[
                     styles.modeText,
-                    { fontFamily: font.bodySemiBold },
+                    { fontFamily: font.bodySemiBold, color: theme.tertiary },
                     mode === opt.mode && { color: '#fff' },
                   ]}
                 >
@@ -127,15 +126,15 @@ export default function CreateListModal({
                   key={tpl.list_id}
                   style={[
                     styles.selectorChip,
-                    { borderColor: PALETTE.clay },
-                    selectedTemplateId === tpl.list_id && { backgroundColor: PALETTE.clay },
+                    { borderColor: theme.tertiary },
+                    selectedTemplateId === tpl.list_id && { backgroundColor: theme.tertiary },
                   ]}
                   onPress={() => setSelectedTemplateId(tpl.list_id)}
                 >
                   <Text
                     style={{
                       fontFamily: font.bodyMedium,
-                      color: selectedTemplateId === tpl.list_id ? '#fff' : PALETTE.clay,
+                      color: selectedTemplateId === tpl.list_id ? '#fff' : theme.tertiary,
                     }}
                   >
                     {tpl.name}
@@ -152,15 +151,15 @@ export default function CreateListModal({
                   key={lst.list_id}
                   style={[
                     styles.selectorChip,
-                    { borderColor: PALETTE.clay },
-                    selectedCopyListId === lst.list_id && { backgroundColor: PALETTE.clay },
+                    { borderColor: theme.tertiary },
+                    selectedCopyListId === lst.list_id && { backgroundColor: theme.tertiary },
                   ]}
                   onPress={() => setSelectedCopyListId(lst.list_id)}
                 >
                   <Text
                     style={{
                       fontFamily: font.bodyMedium,
-                      color: selectedCopyListId === lst.list_id ? '#fff' : PALETTE.clay,
+                      color: selectedCopyListId === lst.list_id ? '#fff' : theme.tertiary,
                     }}
                   >
                     {lst.name}
@@ -176,7 +175,7 @@ export default function CreateListModal({
             disabled={!name.trim() || loading}
           >
             {loading ? (
-              <ActivityIndicator color={PALETTE.cream} />
+              <ActivityIndicator color="#fff" />
             ) : (
               <Text style={[modalStyles.primaryButtonText, { fontFamily: font.bodyBold }]}>Create List</Text>
             )}
@@ -190,6 +189,6 @@ export default function CreateListModal({
 const styles = StyleSheet.create({
   modeRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   modeOption: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, gap: 4 },
-  modeText: { fontSize: 12, color: PALETTE.terracotta },
+  modeText: { fontSize: 12 },
   selectorChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, marginRight: 8 },
 });

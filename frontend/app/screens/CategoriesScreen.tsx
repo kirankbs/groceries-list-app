@@ -97,9 +97,9 @@ export default function CategoriesScreen({ font, categories, fetchCategories, it
             {cat.name !== 'Other' && (
               <TouchableOpacity
                 onPress={() => handleDelete(cat)}
-                style={[st.deleteBtn, { backgroundColor: '#ba1a1a' + '12' }]}
+                style={[st.deleteBtn, { backgroundColor: theme.error + '12' }]}
               >
-                <Ionicons name="trash-outline" size={16} color="#ba1a1a" />
+                <Ionicons name="trash-outline" size={16} color={theme.error} />
               </TouchableOpacity>
             )}
           </TouchableOpacity>
