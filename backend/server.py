@@ -1,6 +1,9 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, UploadFile, File, BackgroundTasks
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
@@ -46,7 +49,13 @@ if not RESEND_API_KEY:
 
 ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:8081,http://localhost:19006').split(',')
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, lambda request, exc: JSONResponse(
+    status_code=429,
+    content={"detail": "Too many requests. Please try again later."}
+))
 api_router = APIRouter(prefix="/api")
 
 
@@ -526,7 +535,8 @@ def send_reset_email(to_email: str, code: str):
 # ==================== AUTH ROUTES ====================
 
 @api_router.post("/auth/register")
-async def register(input: RegisterRequest, response: Response):
+@limiter.limit("5/minute")
+async def register(request: Request, input: RegisterRequest, response: Response):
     if not input.email.strip() or not input.password or not input.name.strip():
         raise HTTPException(status_code=400, detail="Email, password, and name are required")
 
@@ -554,7 +564,8 @@ async def register(input: RegisterRequest, response: Response):
     return {"user": user_response, "session_token": session_token}
 
 @api_router.post("/auth/login")
-async def login(input: LoginRequest, response: Response):
+@limiter.limit("10/minute")
+async def login(request: Request, input: LoginRequest, response: Response):
     user_doc = await db.users.find_one({"email": input.email.strip().lower()})
     if not user_doc or not user_doc.get("password_hash"):
         raise HTTPException(status_code=401, detail="Invalid email or password")
