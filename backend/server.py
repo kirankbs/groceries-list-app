@@ -453,8 +453,8 @@ async def process_receipt_background(receipt_id: str, list_id: str, image_base64
                 continue
             matched_items.append({
                 "item_id": list_item_id,
-                "item_name": list_item["name"],
-                "matched_receipt_line": match.get("matched_receipt_line", ""),
+                "name": list_item["name"],
+                "receipt_name": match.get("matched_receipt_line", ""),
                 "price": float(price),
                 "confidence": match.get("confidence", "medium"),
             })

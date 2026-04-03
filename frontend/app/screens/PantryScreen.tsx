@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../components/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { EXPO_PUBLIC_BACKEND_URL } from '../../components/constants';
+import { EXPO_PUBLIC_BACKEND_URL, CURRENCY_SYMBOLS } from '../../components/constants';
 import type { FontMap, Category, GroceryItem } from '../../components/types';
 import { syncQueue } from '../../services/syncQueue';
 
@@ -46,6 +46,7 @@ export default function PantryScreen({
   } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const currencySymbol = CURRENCY_SYMBOLS[currentWorkspace?.currency || 'USD'] || '$';
 
   // Modal visibility
   const [showHouseholdSwitcher, setShowHouseholdSwitcher] = useState(false);
@@ -255,7 +256,7 @@ export default function PantryScreen({
             fontFamily: font.bodySemiBold,
             color: item.checked ? theme.outline : theme.primary,
           }}>
-            ${item.price.toFixed(2)}
+            {currencySymbol}{item.price.toFixed(2)}
           </Text>
         </View>
       )}
