@@ -157,16 +157,16 @@ class RegisterRequest(BaseModel):
         return v.strip().lower()
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=1024)
 
 class ForgotPasswordRequest(BaseModel):
-    email: str
+    email: str = Field(max_length=254)
 
 class ResetPasswordRequest(BaseModel):
-    email: str
-    code: str
-    new_password: str = Field(min_length=8)
+    email: str = Field(max_length=254)
+    code: str = Field(min_length=6, max_length=6)
+    new_password: str = Field(min_length=8, max_length=1024)
 
 class WorkspaceCurrencyUpdate(BaseModel):
     currency: str
@@ -520,7 +520,7 @@ def send_reset_email(to_email: str, code: str):
         else:
             logger.error(f"Resend API error: {resp.status_code} {resp.text}")
     except Exception as e:
-        logger.error(f"Failed to send reset email to {to_email}: {e}")
+        logger.error(f"Failed to send reset email: {e}")
 
 
 # ==================== AUTH ROUTES ====================
@@ -649,34 +649,42 @@ async def forgot_password(input: ForgotPasswordRequest, background_tasks: Backgr
 @api_router.post("/auth/reset-password")
 async def reset_password(input: ResetPasswordRequest):
     email = input.email.strip().lower()
-    code_doc = await db.password_reset_codes.find_one({"email": email})
-    if not code_doc:
-        raise HTTPException(status_code=400, detail="No reset code found. Please request a new one.")
+    now = datetime.now(timezone.utc)
 
-    expires_at = code_doc["expires_at"]
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    if expires_at < datetime.now(timezone.utc):
-        await db.password_reset_codes.delete_many({"email": email})
-        raise HTTPException(status_code=400, detail="Reset code has expired. Please request a new one.")
+    # Atomically claim one attempt slot before the slow bcrypt comparison.
+    # The filter includes both the expiry and max-attempts guard, so concurrent
+    # requests each consume a distinct slot — no two requests can both read the
+    # same stale attempts count and both proceed past the lockout.
+    code_doc = await db.password_reset_codes.find_one_and_update(
+        {
+            "email": email,
+            "attempts": {"$lt": RESET_CODE_MAX_ATTEMPTS},
+            "expires_at": {"$gt": now},
+        },
+        {"$inc": {"attempts": 1}},
+        return_document=False,  # returns pre-update document
+    )
 
-    if code_doc["attempts"] >= RESET_CODE_MAX_ATTEMPTS:
+    if code_doc is None:
+        # Filter didn't match — pinpoint the reason for a useful error message.
+        existing = await db.password_reset_codes.find_one({"email": email})
+        if not existing:
+            raise HTTPException(status_code=400, detail="No reset code found. Please request a new one.")
+        expires_at = existing["expires_at"]
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < now:
+            await db.password_reset_codes.delete_many({"email": email})
+            raise HTTPException(status_code=400, detail="Reset code has expired. Please request a new one.")
         await db.password_reset_codes.delete_many({"email": email})
         raise HTTPException(status_code=400, detail="Too many attempts. Please request a new code.")
 
     if not bcrypt.checkpw(input.code.encode(), code_doc["code_hash"].encode()):
-        # Atomic increment: get the post-update attempts count so concurrent wrong-code
-        # requests can't both read the same stale value and bypass the lockout.
-        updated = await db.password_reset_codes.find_one_and_update(
-            {"email": email, "attempts": {"$lt": RESET_CODE_MAX_ATTEMPTS}},
-            {"$inc": {"attempts": 1}},
-            return_document=True,
-        )
-        if updated is None:
-            # Lost the race — another request hit the limit first; treat as locked out.
+        # code_doc["attempts"] is the pre-increment value; we already consumed one slot.
+        remaining = max(0, RESET_CODE_MAX_ATTEMPTS - code_doc["attempts"] - 1)
+        if remaining == 0:
             await db.password_reset_codes.delete_many({"email": email})
-            raise HTTPException(status_code=400, detail="Too many attempts. Please request a new code.")
-        remaining = max(0, RESET_CODE_MAX_ATTEMPTS - updated["attempts"])
+            raise HTTPException(status_code=400, detail="Invalid code. No attempts remaining. Please request a new code.")
         raise HTTPException(status_code=400, detail=f"Invalid code. {remaining} attempt(s) remaining.")
 
     new_hash = bcrypt.hashpw(input.new_password.encode(), bcrypt.gensalt()).decode()
@@ -1378,6 +1386,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_db_indexes():
     await db.password_reset_codes.create_index("expires_at", expireAfterSeconds=0)
+    await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

@@ -1060,6 +1060,100 @@ class BackendTester:
         else:
             self.log_result("Forgot password (non-existent email)", False, f"Status: {response.status_code}")
 
+    async def test_otp_lockout_after_max_attempts(self):
+        """OTP attempt lockout: 3 wrong codes must reject all further attempts"""
+        print("\n🔍 Testing OTP lockout after max attempts...")
+
+        test_email = f"test_lockout_{uuid.uuid4().hex[:8]}@example.com"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            reg = await client.post(
+                f"{BACKEND_URL}/auth/register",
+                json={"email": test_email, "password": "testpass123", "name": "Lockout Test"}
+            )
+        if reg.status_code != 200:
+            self.log_result("OTP lockout test — setup", False, f"Register failed: {reg.status_code}")
+            return
+
+        # Seed a known code directly in the DB
+        known_code = "999999"
+        known_hash = bcrypt.hashpw(known_code.encode(), bcrypt.gensalt()).decode()
+        now = datetime.now(timezone.utc)
+        await self.db.password_reset_codes.delete_many({"email": test_email})
+        await self.db.password_reset_codes.insert_one({
+            "email": test_email,
+            "code_hash": known_hash,
+            "attempts": 0,
+            "created_at": now,
+            "expires_at": now + timedelta(minutes=10),
+        })
+
+        # Send 3 wrong codes — each should decrement remaining and be rejected
+        for i in range(3):
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"{BACKEND_URL}/auth/reset-password",
+                    json={"email": test_email, "code": "000000", "new_password": "newpass12345"}
+                )
+            if resp.status_code != 400:
+                self.log_result(f"OTP lockout — wrong attempt {i+1} rejected", False, f"Status: {resp.status_code}")
+                return
+
+        self.log_result("OTP lockout — 3 wrong attempts rejected", True)
+
+        # A 4th attempt (even with the correct code) must also be rejected
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{BACKEND_URL}/auth/reset-password",
+                json={"email": test_email, "code": known_code, "new_password": "newpass12345"}
+            )
+
+        if resp.status_code == 400:
+            self.log_result("OTP lockout — 4th attempt blocked after lockout", True)
+        else:
+            self.log_result("OTP lockout — 4th attempt blocked after lockout", False, f"Status: {resp.status_code}, body: {resp.text}")
+
+        # Cleanup
+        await self.db.password_reset_codes.delete_many({"email": test_email})
+        await self.db.users.delete_many({"email": test_email})
+
+    async def test_otp_field_validation(self):
+        """OTP field validation: codes != 6 chars and oversized emails must be rejected"""
+        print("\n🔍 Testing OTP field validation...")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Code too long
+            resp = await client.post(
+                f"{BACKEND_URL}/auth/reset-password",
+                json={"email": "any@example.com", "code": "1234567", "new_password": "newpass12345"}
+            )
+        if resp.status_code == 422:
+            self.log_result("OTP validation — code > 6 chars rejected (422)", True)
+        else:
+            self.log_result("OTP validation — code > 6 chars rejected (422)", False, f"Status: {resp.status_code}")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Code too short
+            resp = await client.post(
+                f"{BACKEND_URL}/auth/reset-password",
+                json={"email": "any@example.com", "code": "12345", "new_password": "newpass12345"}
+            )
+        if resp.status_code == 422:
+            self.log_result("OTP validation — code < 6 chars rejected (422)", True)
+        else:
+            self.log_result("OTP validation — code < 6 chars rejected (422)", False, f"Status: {resp.status_code}")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Email over max_length
+            long_email = "a" * 300 + "@example.com"
+            resp = await client.post(
+                f"{BACKEND_URL}/auth/forgot-password",
+                json={"email": long_email}
+            )
+        if resp.status_code == 422:
+            self.log_result("OTP validation — oversized email rejected (422)", True)
+        else:
+            self.log_result("OTP validation — oversized email rejected (422)", False, f"Status: {resp.status_code}")
+
     async def test_logout(self):
         """Test POST /api/auth/logout — verify session is invalidated"""
         print("\n🔍 Testing POST /api/auth/logout...")
@@ -1262,6 +1356,8 @@ class BackendTester:
             await self.test_leave_workspace()
             await self.test_forgot_password_nonexistent_email()
             await self.test_forgot_password_flow()
+            await self.test_otp_lockout_after_max_attempts()
+            await self.test_otp_field_validation()
             await self.test_logout()
             
         except Exception as e:
