@@ -86,6 +86,7 @@ export default function GroceryTodo() {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFailedCount, setSyncFailedCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const font: FontMap = useMemo(() => ({
     display: fontsLoaded ? 'PlusJakartaSans_700Bold' : undefined,
@@ -139,6 +140,16 @@ export default function GroceryTodo() {
   useEffect(() => {
     if (!isOnline) setSyncFailedCount(0);
   }, [isOnline]);
+
+  const handleRetrySync = useCallback(async () => {
+    if (!sessionToken || isRetrying) return;
+    setIsRetrying(true);
+    const { failed } = await syncQueue.flush(sessionToken);
+    setSyncFailedCount(failed);
+    await refreshPendingCount();
+    if (currentList) await fetchItems();
+    setIsRetrying(false);
+  }, [sessionToken, isRetrying, currentList, fetchItems, refreshPendingCount]);
 
   // When connectivity returns, flush queued mutations then re-confirm server state.
   // Flush runs unconditionally (not gated on currentList); fetchItems is gated.
@@ -542,6 +553,8 @@ export default function GroceryTodo() {
             fetchCategories={fetchCategories}
             fetchItems={fetchItems}
             loading={loading}
+            onRefresh={handleRetrySync}
+            refreshing={isRetrying}
           />
         )}
         {activeTab === 'lists' && (

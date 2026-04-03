@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, SectionList,
-  Platform, StatusBar, ActivityIndicator, Animated,
+  Platform, StatusBar, ActivityIndicator, Animated, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../components/ThemeContext';
@@ -32,10 +32,13 @@ type Props = {
   fetchCategories: () => void;
   fetchItems: () => void;
   loading: boolean;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 };
 
 export default function PantryScreen({
   font, items, setItems, categories, fetchCategories, fetchItems, loading,
+  onRefresh, refreshing = false,
 }: Props) {
   const { theme } = useTheme();
   const {
@@ -503,6 +506,14 @@ export default function PantryScreen({
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           stickySectionHeadersEnabled={false}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+              />
+            ) : undefined
+          }
         />
       )}
 
