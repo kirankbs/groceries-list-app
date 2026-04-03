@@ -43,12 +43,15 @@ export default function CategoryModal({
     setError('');
     try {
       const url = category
-        ? `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/categories/${category.id}`
-        : `${EXPO_PUBLIC_BACKEND_URL}/api/workspaces/${currentWorkspace.workspace_id}/categories`;
+        ? `${EXPO_PUBLIC_BACKEND_URL}/api/categories/${category.id}`
+        : `${EXPO_PUBLIC_BACKEND_URL}/api/categories`;
+      const body = category
+        ? { name: name.trim(), color, icon }
+        : { name: name.trim(), color, icon, workspace_id: currentWorkspace.workspace_id };
       const resp = await fetch(url, {
         method: category ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
-        body: JSON.stringify({ name: name.trim(), color, icon }),
+        body: JSON.stringify(body),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));

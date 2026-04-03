@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PALETTE } from './constants';
 import type { Theme } from './types';
 
@@ -12,11 +13,26 @@ type ThemeContextType = {
   isDark: boolean;
 };
 
+const THEME_STORAGE_KEY = 'user_color_mode';
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
-  const [colorMode, setColorMode] = useState<ColorMode>('system');
+  const [colorMode, setColorModeState] = useState<ColorMode>('system');
+
+  useEffect(() => {
+    AsyncStorage.getItem(THEME_STORAGE_KEY).then((stored) => {
+      if (stored === 'light' || stored === 'dark' || stored === 'system') {
+        setColorModeState(stored);
+      }
+    });
+  }, []);
+
+  const setColorMode = useCallback((mode: ColorMode) => {
+    setColorModeState(mode);
+    AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
+  }, []);
 
   const isDark = colorMode === 'dark' || (colorMode === 'system' && systemScheme === 'dark');
 

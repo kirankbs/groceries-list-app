@@ -1227,7 +1227,7 @@ async def update_workspace_currency(workspace_id: str, input: WorkspaceCurrencyU
     user = await require_auth(request)
     await verify_workspace_access(user, workspace_id)
 
-    valid_currencies = ["EUR", "USD", "GBP", "CHF", "AUD", "CAD"]
+    valid_currencies = ["EUR", "USD", "GBP", "CHF", "AUD", "CAD", "INR", "JPY", "CNY", "KRW"]
     if input.currency not in valid_currencies:
         raise HTTPException(
             status_code=400,
