@@ -80,6 +80,7 @@ export default function HouseholdSwitcherModal({
               Switch Household
             </Text>
             <TouchableOpacity
+              testID="household-switcher-close-btn"
               onPress={onClose}
               style={[styles.closeBtn, { backgroundColor: theme.surfaceContainer }]}
             >

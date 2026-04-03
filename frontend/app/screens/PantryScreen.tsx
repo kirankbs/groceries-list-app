@@ -316,6 +316,7 @@ export default function PantryScreen({
         paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, gap: 10,
       }}>
         <TouchableOpacity
+          testID="household-menu-btn"
           style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
           onPress={() => setShowHouseholdSwitcher(true)}
         >

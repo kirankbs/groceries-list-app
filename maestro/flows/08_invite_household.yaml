@@ -1,0 +1,93 @@
+# Flow 08 — User A: create a shared household and surface the invite code.
+#
+# Prerequisites:
+#   - Registered test account: userA@example.com / testpassword123
+#   - No household named "E2E Test Home" already exists on this account.
+#     Delete it first (or wipe test data) before re-running.
+#
+# After this flow completes, read the invite code shown under
+# "INVITE NEW PANTRY KEEPERS" in the Household Settings modal and
+# supply it to flow 09 (09_join_household.yaml) as userB's input.
+appId: host.exp.Exponent
+---
+# ── Sign in as User A ────────────────────────────────────────────────────────
+- launchApp
+
+- assertVisible:
+    text: "The Living Pantry"
+
+- tapOn:
+    text: "hello@livingpantry.com"
+- inputText: "userA@example.com"
+
+- tapOn:
+    text: "Enter your password"
+- inputText: "testpassword123"
+
+- tapOn:
+    text: "Sign In"
+
+- assertVisible:
+    text: "Pantry"
+
+# ── Open household switcher ──────────────────────────────────────────────────
+# Tap the hamburger button in the Pantry header (testID added to PantryScreen.tsx)
+- tapOn:
+    id: "household-menu-btn"
+
+- assertVisible:
+    text: "Switch Household"
+
+# ── Create a new shared household ───────────────────────────────────────────
+- tapOn:
+    text: "Create New Household"
+
+- assertVisible:
+    text: "Plant Your Roots."
+
+- tapOn:
+    text: "e.g., The Smiths"
+- inputText: "E2E Test Home"
+
+- tapOn:
+    text: "Create Household →"
+
+# The modal closes and the new household becomes active.
+# The Pantry header subtitle changes to "SHARED HOME" for shared workspaces.
+- assertNotVisible:
+    text: "Plant Your Roots."
+
+- assertVisible:
+    text: "SHARED HOME"
+
+# ── Navigate to Settings ─────────────────────────────────────────────────────
+- tapOn:
+    text: "Settings"
+
+- assertVisible:
+    text: "Settings"
+
+# ── Open Household Settings ──────────────────────────────────────────────────
+- tapOn:
+    text: "Household Settings"
+
+# HouseholdDetailsModal slides up from the bottom
+- assertVisible:
+    text: "E2E Test Home"
+
+# For shared households the invite code card is always rendered
+- assertVisible:
+    text: "INVITE NEW PANTRY KEEPERS"
+
+# The "Share Code" button confirms the code is present and tappable.
+# Do NOT tap it here — it opens the native OS share sheet which is outside
+# Maestro's control on device. The invite code is readable on screen.
+- assertVisible:
+    text: "Share Code"
+
+# ── Dismiss the modal ────────────────────────────────────────────────────────
+- tapOn:
+    id: "household-details-close-btn"
+
+- assertNotVisible:
+    text: "INVITE NEW PANTRY KEEPERS"

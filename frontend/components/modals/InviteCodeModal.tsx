@@ -22,7 +22,7 @@ export default function InviteCodeModal({ visible, font, inviteCode, onClose }: 
             <Ionicons name="share-social" size={36} color={theme.primary} />
           </View>
           <Text style={[modalStyles.centeredTitle, { color: theme.text, fontFamily: font.serif }]}>Invite Code</Text>
-          <Text style={[styles.codeDisplay, { color: theme.text, backgroundColor: theme.inputBg, fontFamily: font.serifMedium }]}>
+          <Text testID="invite-code-display" style={[styles.codeDisplay, { color: theme.text, backgroundColor: theme.inputBg, fontFamily: font.serifMedium }]}>
             {inviteCode}
           </Text>
           <Text style={[modalStyles.centeredMsg, { color: theme.textSecondary, fontFamily: font.body }]}>
