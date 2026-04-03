@@ -1154,6 +1154,50 @@ class BackendTester:
         else:
             self.log_result("OTP validation — oversized email rejected (422)", False, f"Status: {resp.status_code}")
 
+    async def test_login_rate_limit(self):
+        """Rate limiting: 11 rapid login attempts must trigger 429 on the 11th"""
+        print("\n🔍 Testing login rate limit (10/minute)...")
+
+        payload = {"email": "ratelimit_login@example.com", "password": "wrongpassword"}
+        last_status = None
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for _ in range(11):
+                resp = await client.post(f"{BACKEND_URL}/auth/login", json=payload)
+                last_status = resp.status_code
+
+        if last_status == 429:
+            self.log_result("POST /api/auth/login rate limit (429 after 11 requests)", True)
+        else:
+            self.log_result(
+                "POST /api/auth/login rate limit (429 after 11 requests)",
+                False,
+                f"Expected 429, got {last_status}"
+            )
+
+    async def test_register_rate_limit(self):
+        """Rate limiting: 6 rapid register attempts must trigger 429 on the 6th"""
+        print("\n🔍 Testing register rate limit (5/minute)...")
+
+        last_status = None
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for i in range(6):
+                payload = {
+                    "email": f"ratelimit_reg_{i}_{uuid.uuid4().hex[:4]}@example.com",
+                    "password": "testpass123",
+                    "name": "Rate Limit Test"
+                }
+                resp = await client.post(f"{BACKEND_URL}/auth/register", json=payload)
+                last_status = resp.status_code
+
+        if last_status == 429:
+            self.log_result("POST /api/auth/register rate limit (429 after 6 requests)", True)
+        else:
+            self.log_result(
+                "POST /api/auth/register rate limit (429 after 6 requests)",
+                False,
+                f"Expected 429, got {last_status}"
+            )
+
     async def test_logout(self):
         """Test POST /api/auth/logout — verify session is invalidated"""
         print("\n🔍 Testing POST /api/auth/logout...")
@@ -1358,6 +1402,8 @@ class BackendTester:
             await self.test_forgot_password_flow()
             await self.test_otp_lockout_after_max_attempts()
             await self.test_otp_field_validation()
+            await self.test_login_rate_limit()
+            await self.test_register_rate_limit()
             await self.test_logout()
             
         except Exception as e:
