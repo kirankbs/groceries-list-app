@@ -12,7 +12,7 @@
 | Shopping Lists (CRUD/complete/templates) | Full | Complete | ~6 tests | — | — | |
 | Items (CRUD/check/bulk/categories) | Full | Complete | ~8 tests | — | — | |
 | Categories (CRUD/reorder/defaults) | Full | Complete | ~8 tests | — | — | |
-| Receipt OCR | Full | Complete | ~0 tests | — | — | No integration test coverage |
+| Receipt OCR | Full | Complete | 4 tests | — | — | upload, poll, list, confirm |
 | Offline sync | Partial | Complete | — | 28 tests | 2 flows | Replay failure recovery not spec'd |
 | Pantry | Full | Complete | ~4 tests | — | — | Recently refactored screen |
 | Dark mode | Full | Complete | — | — | — | No audit done |
@@ -45,3 +45,5 @@
 | Date | What was built | Impact |
 |------|---------------|--------|
 | 2026-04-03 | Agent-oriented setup: 6 agents + deep-work skill + planning directory | Infrastructure |
+| 2026-04-03 | Session 1: CategoryModal URL fix, currency mismatch fix, theme persistence, 5 new tests | Bug fixes + coverage |
+| 2026-04-03 | Session 2: Receipt OCR — 4 integration tests covering all endpoints | P0 coverage |

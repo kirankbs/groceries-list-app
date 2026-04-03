@@ -409,6 +409,167 @@ class BackendTester:
         
         return False
 
+    async def test_upload_receipt(self):
+        """Test POST /api/lists/{id}/upload-receipt"""
+        print("\n🔍 Testing POST /api/lists/{id}/upload-receipt...")
+
+        if not self.test_list_id:
+            self.log_result("POST /api/lists/{id}/upload-receipt", False, "No list ID available")
+            return False
+
+        # Generate a minimal valid 1x1 PNG in memory — no fixture file needed
+        import struct, zlib as _zlib
+        def _make_png():
+            raw = b'\x00\xff\x00\x00'
+            compressed = _zlib.compress(raw)
+            def chunk(t, d):
+                c = t + d
+                return struct.pack('>I', len(d)) + c + struct.pack('>I', _zlib.crc32(c) & 0xffffffff)
+            return (b'\x89PNG\r\n\x1a\n' +
+                    chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)) +
+                    chunk(b'IDAT', compressed) +
+                    chunk(b'IEND', b''))
+
+        png_bytes = _make_png()
+
+        url = f"{BACKEND_URL}/lists/{self.test_list_id}/upload-receipt"
+        auth_headers = {"Authorization": f"Bearer {self.session_token}"}
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                url,
+                headers=auth_headers,
+                files={"image": ("test.png", png_bytes, "image/png")},
+            )
+
+        if response and response.status_code == 200:
+            data = response.json()
+            if "receipt_id" in data and data.get("status") == "processing":
+                self.test_receipt_id = data["receipt_id"]
+                self.log_result("POST /api/lists/{id}/upload-receipt", True,
+                                f"Receipt created: {self.test_receipt_id}")
+                return True
+            else:
+                self.log_result("POST /api/lists/{id}/upload-receipt", False,
+                                f"Unexpected response: {data}")
+        else:
+            status = response.status_code if response else "No response"
+            self.log_result("POST /api/lists/{id}/upload-receipt", False, f"Status: {status}")
+
+        return False
+
+    async def test_get_receipt_status(self):
+        """Test GET /api/receipts/{id} — poll receipt status"""
+        print("\n🔍 Testing GET /api/receipts/{id}...")
+
+        if not hasattr(self, 'test_receipt_id') or not self.test_receipt_id:
+            self.log_result("GET /api/receipts/{id}", False, "No receipt ID available")
+            return False
+
+        response = await self.make_request("GET", f"/receipts/{self.test_receipt_id}")
+
+        if response and response.status_code == 200:
+            data = response.json()
+            required = {"receipt_id", "status", "list_id", "uploaded_at"}
+            if required.issubset(data.keys()) and data["status"] in ("processing", "failed", "completed"):
+                self.log_result("GET /api/receipts/{id}", True,
+                                f"Status: {data['status']}")
+                return True
+            else:
+                self.log_result("GET /api/receipts/{id}", False,
+                                f"Missing fields or bad status: {data}")
+        else:
+            status = response.status_code if response else "No response"
+            self.log_result("GET /api/receipts/{id}", False, f"Status: {status}")
+
+        return False
+
+    async def test_get_list_receipts(self):
+        """Test GET /api/lists/{id}/receipts"""
+        print("\n🔍 Testing GET /api/lists/{id}/receipts...")
+
+        if not self.test_list_id:
+            self.log_result("GET /api/lists/{id}/receipts", False, "No list ID available")
+            return False
+
+        response = await self.make_request("GET", f"/lists/{self.test_list_id}/receipts")
+
+        if response and response.status_code == 200:
+            data = response.json()
+            if isinstance(data, list):
+                receipt_ids = [r.get("receipt_id") for r in data]
+                if hasattr(self, 'test_receipt_id') and self.test_receipt_id in receipt_ids:
+                    self.log_result("GET /api/lists/{id}/receipts", True,
+                                    f"Found {len(data)} receipt(s)")
+                    return True
+                else:
+                    self.log_result("GET /api/lists/{id}/receipts", False,
+                                    "Uploaded receipt not found in list")
+            else:
+                self.log_result("GET /api/lists/{id}/receipts", False, "Response is not an array")
+        else:
+            status = response.status_code if response else "No response"
+            self.log_result("GET /api/lists/{id}/receipts", False, f"Status: {status}")
+
+        return False
+
+    async def test_confirm_receipt(self):
+        """Test POST /api/receipts/{id}/confirm — uses DB manipulation to simulate completed receipt"""
+        print("\n🔍 Testing POST /api/receipts/{id}/confirm...")
+
+        if not hasattr(self, 'test_receipt_id') or not self.test_receipt_id:
+            self.log_result("POST /api/receipts/{id}/confirm", False, "No receipt ID available")
+            return False
+
+        # Create a fresh item to confirm prices against
+        item_resp = await self.make_request("POST", "/items", {
+            "name": "Receipt Confirm Test Item",
+            "list_id": self.test_list_id,
+        })
+        if not item_resp or item_resp.status_code != 200:
+            self.log_result("POST /api/receipts/{id}/confirm", False, "Could not create test item")
+            return False
+
+        confirm_item_id = item_resp.json()["id"]
+
+        # Simulate a completed receipt via direct DB update
+        from datetime import datetime, timezone
+        await self.db.receipts.update_one(
+            {"receipt_id": self.test_receipt_id},
+            {"$set": {
+                "status": "completed",
+                "store_name": "Test Store",
+                "receipt_total": 5.99,
+                "matched_items": [{
+                    "list_item_id": confirm_item_id,
+                    "matched_receipt_line": "Receipt Confirm Test Item",
+                    "price": 5.99,
+                    "confidence": "high",
+                }],
+            }}
+        )
+
+        # Confirm the receipt
+        response = await self.make_request("POST", f"/receipts/{self.test_receipt_id}/confirm", {
+            "confirmed_items": [{"item_id": confirm_item_id, "price": 5.99}]
+        })
+
+        if not response or response.status_code != 200:
+            status = response.status_code if response else "No response"
+            self.log_result("POST /api/receipts/{id}/confirm", False, f"Status: {status}")
+            return False
+
+        # Verify price was updated on the grocery item
+        item_doc = await self.db.grocery_items.find_one({"id": confirm_item_id})
+        if item_doc and item_doc.get("price") == 5.99 and item_doc.get("price_updated_at"):
+            self.log_result("POST /api/receipts/{id}/confirm", True,
+                            "Price updated and price_updated_at set")
+            return True
+        else:
+            price = item_doc.get("price") if item_doc else "item not found"
+            self.log_result("POST /api/receipts/{id}/confirm", False,
+                            f"Price not updated correctly: {price}")
+            return False
+
     async def test_get_workspace_categories(self):
         """Test GET /api/workspaces/{id}/categories — 10 default categories on a new workspace"""
         print("\n🔍 Testing GET /api/workspaces/{id}/categories...")
@@ -1081,7 +1242,11 @@ class BackendTester:
             await self.test_get_list_items()
             await self.test_create_grocery_item()
             await self.test_update_grocery_item()
+            await self.test_upload_receipt()
+            await self.test_get_receipt_status()
+            await self.test_get_list_receipts()
             await self.test_delete_grocery_item()
+            await self.test_confirm_receipt()
             await self.test_update_shopping_list()
             await self.test_delete_shopping_list()
             await self.test_get_workspace_categories()
