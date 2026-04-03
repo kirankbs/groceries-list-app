@@ -68,6 +68,7 @@ export default function HouseholdDetailsModal({
           {/* Close button */}
           <View style={styles.closeBtnRow}>
             <TouchableOpacity
+              testID="household-details-close-btn"
               onPress={onClose}
               style={[styles.closeBtn, { backgroundColor: theme.surfaceContainer }]}
             >

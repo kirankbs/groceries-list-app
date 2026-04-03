@@ -1,0 +1,96 @@
+# Flow 09 — User B: join an existing shared household using an invite code.
+#
+# Prerequisites:
+#   - Flow 08 (08_invite_household.yaml) has run and "E2E Test Home" exists.
+#   - A DIFFERENT registered account exists: userB@example.com / testpassword456
+#     (User B must NOT already be a member of "E2E Test Home")
+#   - Replace "ABCD-1234" below with the actual 8-char code from flow 08.
+#     The code is visible in Settings → Household Settings → "INVITE NEW PANTRY KEEPERS".
+#
+# What is covered:
+#   1. User B signs in
+#   2. Opens household switcher → taps "Join with Code"
+#   3. JoinHouseholdModal is shown with the XXXX-XXXX input
+#   4. User B enters the invite code and submits
+#   5. The joined household becomes active in the Pantry header
+#   6. "E2E Test Home" appears in the switcher as a Shared Household
+appId: host.exp.Exponent
+---
+# ── Sign in as User B ────────────────────────────────────────────────────────
+- launchApp
+
+- assertVisible:
+    text: "The Living Pantry"
+
+- tapOn:
+    text: "hello@livingpantry.com"
+- inputText: "userB@example.com"
+
+- tapOn:
+    text: "Enter your password"
+- inputText: "testpassword456"
+
+- tapOn:
+    text: "Sign In"
+
+- assertVisible:
+    text: "Pantry"
+
+# ── Open household switcher ──────────────────────────────────────────────────
+- tapOn:
+    id: "household-menu-btn"
+
+- assertVisible:
+    text: "Switch Household"
+
+# ── Open Join modal ──────────────────────────────────────────────────────────
+- tapOn:
+    text: "Join with Code"
+
+- assertVisible:
+    text: "Welcome Aboard."
+
+# ── Enter the invite code ────────────────────────────────────────────────────
+# Replace ABCD-1234 with the actual code from flow 08.
+# testID="join-code-input" is on the TextInput in JoinHouseholdModal.tsx.
+- tapOn:
+    id: "join-code-input"
+- clearText
+- inputText: "ABCD-1234"
+
+# ── Submit ───────────────────────────────────────────────────────────────────
+- tapOn:
+    text: "Join Household →"
+
+# The modal closes and the joined workspace is now active
+- assertNotVisible:
+    text: "Welcome Aboard."
+
+# ── Verify the shared household is active ───────────────────────────────────
+- assertVisible:
+    text: "E2E Test Home"
+
+- assertVisible:
+    text: "SHARED HOME"
+
+# ── Confirm membership via the switcher ─────────────────────────────────────
+# The household switcher lists all workspaces for User B.
+# "E2E Test Home" should now appear as a Shared Household row.
+- tapOn:
+    id: "household-menu-btn"
+
+- assertVisible:
+    text: "Switch Household"
+
+- assertVisible:
+    text: "E2E Test Home"
+
+- assertVisible:
+    text: "Shared Household"
+
+# Dismiss
+- tapOn:
+    id: "household-switcher-close-btn"
+
+- assertNotVisible:
+    text: "Switch Household"

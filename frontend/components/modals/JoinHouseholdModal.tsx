@@ -75,6 +75,7 @@ export default function JoinHouseholdModal({ visible, font, onClose, onJoined, o
 
           {/* Invite code input */}
           <TextInput
+            testID="join-code-input"
             style={[
               styles.codeInput,
               { backgroundColor: theme.surfaceContainer, color: theme.text, fontFamily: font.bodyBold },
