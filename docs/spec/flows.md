@@ -54,11 +54,11 @@
 2. Enter invite code → POST /api/workspaces/join
 
 **10. Scan Receipt**
-1. PantryScreen → "Quick Add" → ReceiptScanModal (picker — photo library only, no camera)
+1. PantryScreen → "Quick Add" button (next to search bar) → ReceiptScanModal (picker step — single "Choose from Library" card, photo library only, no camera)
 2. Pick image → upload multipart to POST /api/lists/{id}/upload-receipt
-3. Modal → uploading step; polls GET /api/receipts/{id} every 3s
-4. Completed → review step with matched items + editable prices
-5. Confirm → POST /api/receipts/{id}/confirm → prices written
+3. Modal → uploading step; polls GET /api/receipts/{id} every 3s; max 40 polls (~2 min) before timeout
+4. Completed → review step: matched items list (store name + receipt total shown if present), editable price TextInput per item, running total in workspace currency; `item_name` from backend response is mapped to the `name` field in the `MatchedItem` interface — this field name mismatch means item names render blank in the current code
+5. Confirm → POST /api/receipts/{id}/confirm `{confirmed_items: [{item_id, price}]}` → prices written to grocery items
 
 **11. Create List from Template**
 1. CreateListModal → "Template" mode → pick template chip

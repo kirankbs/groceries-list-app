@@ -106,7 +106,7 @@ API responses augment with: `total_items`, `checked_items` (via aggregation). Te
 | `receipt_total` | float\|null | total from receipt |
 | `matched_total` | float\|null | sum of matched item prices |
 | `raw_extracted_items` | list | excluded from GET responses (replaced with `raw_items_count`) |
-| `matched_items` | list | `[{item_id, item_name, matched_receipt_line, price, confidence}]` |
+| `matched_items` | list | `[{item_id, name, receipt_name, price, confidence}]` — `name` is the grocery item name, `receipt_name` is the matching receipt line |
 | `error_message` | str\|null | set on failure |
 
 ---
@@ -118,3 +118,4 @@ API responses augment with: `total_items`, `checked_items` (via aggregation). Te
 - **No pagination:** No endpoints implement pagination, cursor, or limit parameters. Response sizes are unbounded.
 - **No explicit indexes documented:** Beyond `users.email` (unique) and `password_reset_codes.expires_at` (TTL), no indexes are defined for high-traffic query paths (`grocery_items` by `list_id`, `categories` by `workspace_id`, etc.).
 - **`added_by` not in frontend type:** The `grocery_items.added_by` field exists in the backend model but is omitted from the frontend `GroceryItem` TypeScript type — the UI does not display item attribution.
+- **No explicit indexes documented:** See line above — TTL index now also exists on `user_sessions.expires_at` (added alongside `password_reset_codes.expires_at`).

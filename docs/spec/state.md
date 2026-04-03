@@ -58,6 +58,6 @@
 | Field | Type | Notes |
 |---|---|---|
 | `colorMode` | `'light' \| 'dark' \| 'system'` | Default: `'system'` |
-| `setColorMode(mode)` | `(ColorMode) => void` | State only (not persisted to disk) |
+| `setColorMode(mode)` | `(ColorMode) => void` | Persisted to `AsyncStorage` under key `'theme_color_mode'`; restored on next mount |
 | `theme` | `Theme` | Derived from colorMode + system scheme |
 | `isDark` | `boolean` | `colorMode === 'dark' \|\| (colorMode === 'system' && systemScheme === 'dark')` |

@@ -21,6 +21,8 @@
 - `RESET_CODE_COOLDOWN_SECONDS = 60` (min interval between new code requests per email)
 - `RESET_CODE_MAX_ATTEMPTS = 3`
 
+**Request validation:** `ResetPasswordRequest.code` is validated as exactly 6 characters (`min_length=6, max_length=6`) at the Pydantic layer — malformed codes are rejected with HTTP 422 before reaching the database.
+
 ## Session Token
 - Generated: `secrets.token_urlsafe(32)` (URL-safe base64, ~43 chars)
 - TTL: 7 days (`SESSION_EXPIRY_DAYS = 7`)
